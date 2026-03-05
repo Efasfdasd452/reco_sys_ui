@@ -1,0 +1,105 @@
+{
+  "app": { "name": "习题推荐系统" },
+  "nav": {
+    "home": "首页",
+    "courses": "课程",
+    "exercises": "习题",
+    "recommend": "推荐",
+    "knowledge": "知识图谱",
+    "notifications": "通知",
+    "profile": "个人信息",
+    "logout": "退出登录",
+    "admin": "管理后台",
+    "grade": "批改作业",
+    "statistics": "统计"
+  },
+  "auth": {
+    "login": "登录",
+    "register": "注册",
+    "username": "用户名",
+    "password": "密码",
+    "email": "邮箱",
+    "emailCode": "邮箱验证码",
+    "sendCode": "发送验证码",
+    "resend": "重新发送",
+    "nickname": "昵称（选填）",
+    "forgotPassword": "忘记密码？",
+    "noAccount": "还没有账号？",
+    "hasAccount": "已有账号？",
+    "resetPassword": "重置密码",
+    "newPassword": "新密码",
+    "loginSuccess": "登录成功",
+    "registerSuccess": "注册成功，请登录"
+  },
+  "course": {
+    "all": "全部课程",
+    "my": "我的课程",
+    "enroll": "加入课程",
+    "unenroll": "退出课程",
+    "enrolled": "已加入",
+    "teacher": "教师",
+    "createCourse": "创建课程",
+    "courseName": "课程名称",
+    "description": "课程描述"
+  },
+  "exercise": {
+    "title": "习题",
+    "type": {
+      "SINGLE_CHOICE": "单选题",
+      "MULTIPLE_CHOICE": "多选题",
+      "FILL_BLANK": "填空题",
+      "SHORT_ANSWER": "简答题"
+    },
+    "difficulty": {
+      "EASY": "简单",
+      "MEDIUM": "中等",
+      "HARD": "困难"
+    },
+    "submit": "提交答案",
+    "submitSuccess": "提交成功",
+    "yourAnswer": "你的答案",
+    "uploadImage": "上传图片",
+    "takePhoto": "手机拍照上传"
+  },
+  "recommend": {
+    "title": "推荐习题",
+    "refresh": "重新推荐",
+    "reason": "推荐理由",
+    "score": "推荐分数",
+    "empty": "暂无推荐，完成更多习题后会自动生成"
+  },
+  "knowledge": {
+    "graph": "知识图谱",
+    "mastery": "掌握度",
+    "point": "知识点"
+  },
+  "grade": {
+    "pending": "待批改",
+    "graded": "已批改",
+    "score": "分数",
+    "comment": "批改意见",
+    "submit": "提交批改",
+    "gradeSuccess": "批改成功"
+  },
+  "notification": {
+    "title": "通知",
+    "markAllRead": "全部已读",
+    "empty": "暂无通知",
+    "GRADE_DONE": "批改完成",
+    "SECURITY_ALERT": "安全提醒",
+    "SYSTEM": "系统通知"
+  },
+  "common": {
+    "confirm": "确认",
+    "cancel": "取消",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "loading": "加载中...",
+    "noData": "暂无数据",
+    "success": "操作成功",
+    "error": "操作失败",
+    "search": "搜索"
+  }
+}

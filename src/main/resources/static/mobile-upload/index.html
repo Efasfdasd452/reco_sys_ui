@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>拍照上传答案</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    }
+    h1 { font-size: 20px; color: #333; margin-bottom: 8px; }
+    p { font-size: 14px; color: #666; margin-bottom: 24px; }
+    .preview {
+      width: 100%;
+      aspect-ratio: 4/3;
+      background: #f0f0f0;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin-bottom: 16px;
+      border: 2px dashed #d0d0d0;
+    }
+    .preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .preview-placeholder {
+      color: #aaa;
+      font-size: 14px;
+      text-align: center;
+      padding: 16px;
+    }
+    .preview-placeholder svg { width: 48px; height: 48px; margin-bottom: 8px; display: block; margin: 0 auto 8px; }
+    input[type="file"] { display: none; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      margin-bottom: 12px;
+    }
+    .btn:active { opacity: 0.8; }
+    .btn-camera {
+      background: #1677ff;
+      color: #fff;
+    }
+    .btn-gallery {
+      background: #f0f5ff;
+      color: #1677ff;
+      border: 1px solid #adc6ff;
+    }
+    .btn-upload {
+      background: #52c41a;
+      color: #fff;
+    }
+    .btn:disabled {
+      background: #d9d9d9;
+      color: #fff;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      text-align: center;
+      display: none;
+    }
+    .status.success { background: #f6ffed; color: #52c41a; border: 1px solid #b7eb8f; display: block; }
+    .status.error { background: #fff2f0; color: #ff4d4f; border: 1px solid #ffccc7; display: block; }
+    .status.loading { background: #e6f4ff; color: #1677ff; border: 1px solid #91caff; display: block; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>拍照上传答案</h1>
+    <p>请拍摄或选择你的手写答案照片，上传后电脑端将自动接收。</p>
+
+    <div class="preview" id="preview">
+      <div class="preview-placeholder">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="1.5">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+        暂无图片
+      </div>
+    </div>
+
+    <input type="file" id="cameraInput" accept="image/*" capture="environment">
+    <input type="file" id="galleryInput" accept="image/*">
+
+    <button class="btn btn-camera" onclick="document.getElementById('cameraInput').click()">
+      📷 拍照
+    </button>
+    <button class="btn btn-gallery" onclick="document.getElementById('galleryInput').click()">
+      🖼️ 从相册选择
+    </button>
+    <button class="btn btn-upload" id="uploadBtn" disabled onclick="uploadFile()">
+      上传
+    </button>
+
+    <div class="status" id="status"></div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    if (!token) {
+      showStatus('error', '链接无效，请重新扫码');
+    }
+
+    let selectedFile = null;
+
+    function handleFileSelect(file) {
+      if (!file) return;
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = e => {
+        document.getElementById('preview').innerHTML =
+          '<img src="' + e.target.result + '" alt="预览">';
+      };
+      reader.readAsDataURL(file);
+      document.getElementById('uploadBtn').disabled = false;
+    }
+
+    document.getElementById('cameraInput').addEventListener('change', e => {
+      handleFileSelect(e.target.files[0]);
+    });
+    document.getElementById('galleryInput').addEventListener('change', e => {
+      handleFileSelect(e.target.files[0]);
+    });
+
+    function uploadFile() {
+      if (!selectedFile || !token) return;
+      const btn = document.getElementById('uploadBtn');
+      btn.disabled = true;
+      showStatus('loading', '上传中，请稍候...');
+
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('token', token);
+
+      fetch('/mobile-upload/upload', {
+        method: 'POST',
+        body: formData
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.code === 200) {
+          showStatus('success', '上传成功！电脑端已收到图片，可以关闭此页面。');
+        } else {
+          showStatus('error', '上传失败：' + (data.message || '未知错误'));
+          btn.disabled = false;
+        }
+      })
+      .catch(() => {
+        showStatus('error', '网络错误，请检查是否与电脑在同一WiFi下');
+        btn.disabled = false;
+      });
+    }
+
+    function showStatus(type, msg) {
+      const el = document.getElementById('status');
+      el.className = 'status ' + type;
+      el.textContent = msg;
+    }
+  </script>
+</body>
+</html>

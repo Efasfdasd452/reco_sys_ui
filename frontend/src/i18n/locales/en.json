@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Exercise Recommendation System" },
+  "nav": {
+    "home": "Home",
+    "courses": "Courses",
+    "exercises": "Exercises",
+    "recommend": "Recommendations",
+    "knowledge": "Knowledge Graph",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "logout": "Logout",
+    "admin": "Admin",
+    "grade": "Grade",
+    "statistics": "Statistics"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Register",
+    "username": "Username",
+    "password": "Password",
+    "email": "Email",
+    "emailCode": "Email Code",
+    "sendCode": "Send Code",
+    "resend": "Resend",
+    "nickname": "Nickname (optional)",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "No account?",
+    "hasAccount": "Already have an account?",
+    "resetPassword": "Reset Password",
+    "newPassword": "New Password",
+    "loginSuccess": "Login successful",
+    "registerSuccess": "Registered successfully, please login"
+  },
+  "course": {
+    "all": "All Courses",
+    "my": "My Courses",
+    "enroll": "Enroll",
+    "unenroll": "Leave",
+    "enrolled": "Enrolled",
+    "teacher": "Teacher",
+    "createCourse": "Create Course",
+    "courseName": "Course Name",
+    "description": "Description"
+  },
+  "exercise": {
+    "title": "Exercises",
+    "type": {
+      "SINGLE_CHOICE": "Single Choice",
+      "MULTIPLE_CHOICE": "Multiple Choice",
+      "FILL_BLANK": "Fill in the Blank",
+      "SHORT_ANSWER": "Short Answer"
+    },
+    "difficulty": {
+      "EASY": "Easy",
+      "MEDIUM": "Medium",
+      "HARD": "Hard"
+    },
+    "submit": "Submit Answer",
+    "submitSuccess": "Submitted successfully",
+    "yourAnswer": "Your Answer",
+    "uploadImage": "Upload Image",
+    "takePhoto": "Take Photo (Mobile)"
+  },
+  "recommend": {
+    "title": "Recommended Exercises",
+    "refresh": "Refresh",
+    "reason": "Reason",
+    "score": "Score",
+    "empty": "No recommendations yet. Complete more exercises to get personalized suggestions."
+  },
+  "knowledge": {
+    "graph": "Knowledge Graph",
+    "mastery": "Mastery",
+    "point": "Knowledge Point"
+  },
+  "grade": {
+    "pending": "Pending",
+    "graded": "Graded",
+    "score": "Score",
+    "comment": "Comment",
+    "submit": "Submit Grade",
+    "gradeSuccess": "Graded successfully"
+  },
+  "notification": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "empty": "No notifications",
+    "GRADE_DONE": "Grade Done",
+    "SECURITY_ALERT": "Security Alert",
+    "SYSTEM": "System"
+  },
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "loading": "Loading...",
+    "noData": "No data",
+    "success": "Success",
+    "error": "Error",
+    "search": "Search"
+  }
+}
