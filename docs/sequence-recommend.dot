@@ -1,0 +1,80 @@
+// ══════════════════════════════════════════════════════
+//  序列图 3：手动刷新推荐习题
+// ══════════════════════════════════════════════════════
+digraph Seq3_Recommend {
+
+    graph [
+        label    = "序列图 3：手动刷新推荐习题"
+        labelloc = t
+        rankdir  = TB
+        fontname = "Microsoft YaHei"
+        fontsize = 16
+        bgcolor  = white
+        nodesep  = 1.6
+        ranksep  = 0.38
+        splines  = ortho
+    ]
+    node [fontname="Microsoft YaHei" fontsize=11]
+    edge [fontname="Microsoft YaHei" fontsize=10]
+
+    // ── 参与者头部 ──────────────────────────────────────
+    { rank=same
+        P_fe    [shape=box style="filled,rounded" fillcolor="#BBDEFB" label="前端\n(React)"]
+        P_rec   [shape=box style="filled,rounded" fillcolor="#CE93D8" label="RecommendController"]
+        P_mysql [shape=cylinder style=filled fillcolor="#A5D6A7" label="MySQL"]
+        P_neo4j [shape=cylinder style=filled fillcolor="#C8E6C9" label="Neo4j"]
+        P_py    [shape=box style="filled,rounded" fillcolor="#FFE082" label="Python FastAPI\n:8000"]
+    }
+
+    // ── 生命线节点 ──────────────────────────────────────
+    node [shape=point width=0 height=0 label=""]
+
+    fe0; fe1; fe2; fe3; fe4; fe5; fe6; fe7; fe8; fe9; fe10
+    re0; re1; re2; re3; re4; re5; re6; re7; re8; re9; re10
+    my0; my1; my2; my3; my4; my5; my6; my7; my8; my9; my10
+    n40; n41; n42; n43; n44; n45; n46; n47; n48; n49; n410
+    py0; py1; py2; py3; py4; py5; py6; py7; py8; py9; py10
+
+    { rank=same  fe0  re0  my0  n40  py0  }
+    { rank=same  fe1  re1  my1  n41  py1  }
+    { rank=same  fe2  re2  my2  n42  py2  }
+    { rank=same  fe3  re3  my3  n43  py3  }
+    { rank=same  fe4  re4  my4  n44  py4  }
+    { rank=same  fe5  re5  my5  n45  py5  }
+    { rank=same  fe6  re6  my6  n46  py6  }
+    { rank=same  fe7  re7  my7  n47  py7  }
+    { rank=same  fe8  re8  my8  n48  py8  }
+    { rank=same  fe9  re9  my9  n49  py9  }
+    { rank=same  fe10 re10 my10 n410 py10 }
+
+    // ── 生命线 ──────────────────────────────────────────
+    edge [style=dashed arrowhead=none color="#AAAAAA" weight=20]
+    P_fe    -> fe0  -> fe1  -> fe2  -> fe3  -> fe4  -> fe5  -> fe6  -> fe7  -> fe8  -> fe9  -> fe10
+    P_rec   -> re0  -> re1  -> re2  -> re3  -> re4  -> re5  -> re6  -> re7  -> re8  -> re9  -> re10
+    P_mysql -> my0  -> my1  -> my2  -> my3  -> my4  -> my5  -> my6  -> my7  -> my8  -> my9  -> my10
+    P_neo4j -> n40  -> n41  -> n42  -> n43  -> n44  -> n45  -> n46  -> n47  -> n48  -> n49  -> n410
+    P_py    -> py0  -> py1  -> py2  -> py3  -> py4  -> py5  -> py6  -> py7  -> py8  -> py9  -> py10
+
+    // ── 消息 ────────────────────────────────────────────
+    edge [style=solid arrowhead=vee color="#333333" weight=1]
+
+    fe0  -> re0   [label="① POST /api/recommendations/refresh\n  trigger_type=MANUAL"]
+
+    // 读取学生状态数据
+    re1  -> my1   [label="② SELECT mastery_level, appear_prob\n  FROM user_kc_state WHERE user_id=?"]
+    my2  -> re2   [label="③ 返回各知识点 mlkc / pkc"]
+    re3  -> my3   [label="④ SELECT forget_rate\n  FROM user_exercise_forget WHERE user_id=?"]
+    my4  -> re4   [label="⑤ 返回各习题 exfr"]
+
+    // 补充查询知识图谱（获取活跃知识点）
+    re5  -> n45   [label="⑥ MATCH (u)-[r]->(kc:KnowledgePoint)\n  WHERE u.userId=? RETURN kc"]
+    n46  -> re6   [label="⑦ 返回关联知识点集合"]
+
+    // 调用 Python 推荐服务
+    re7  -> py7   [label="⑧ POST /api/v1/recommend\n  {uid, mlkc:{kc0:0.54,...},\n   pkc:{kc0:0.30,...},\n   exfr:{ex0:0.10,...}, top_n:10}\n  X-API-Key: ***"]
+    py8  -> re8   [label="⑨ 返回推荐结果\n  [{exercise_id, exercise_name, score, kcs}]"]
+
+    // 保存推荐记录并返回
+    re9  -> my9   [label="⑩ INSERT recommendation_record\n  INSERT rec_exercise_item (批量)"]
+    re10 -> fe10  [label="⑪ 返回推荐习题详情列表\n  （含题目内容、难度、知识点标签）"]
+}

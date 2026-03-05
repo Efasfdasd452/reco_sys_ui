@@ -1,0 +1,81 @@
+// ═══════════════════════════════════════════════════════════════
+//  习题推荐系统 — 序列图
+//  包含三个核心流程：
+//    1. 用户登录 + 自动推荐触发
+//    2. 学生提交答题
+//    3. 手动刷新推荐
+// ═══════════════════════════════════════════════════════════════
+
+// ──────────────────────────────────────────────────────────────
+// 流程一：用户登录 + 自动推荐触发
+// ──────────────────────────────────────────────────────────────
+digraph Seq1_Login {
+
+    graph [
+        label    = "序列图 1：用户登录 + 自动推荐触发"
+        labelloc = t
+        rankdir  = TB
+        fontname = "Microsoft YaHei"
+        fontsize = 16
+        bgcolor  = white
+        nodesep  = 1.6
+        ranksep  = 0.4
+        splines  = ortho
+    ]
+    node [fontname="Microsoft YaHei" fontsize=11]
+    edge [fontname="Microsoft YaHei" fontsize=10]
+
+    // ── 参与者头部 ──────────────────────────────────────────────
+    { rank=same
+        P_fe    [shape=box style="filled,rounded" fillcolor="#BBDEFB" label="前端\n(React)"]
+        P_auth  [shape=box style="filled,rounded" fillcolor="#F8BBD0" label="AuthController"]
+        P_rec   [shape=box style="filled,rounded" fillcolor="#CE93D8" label="RecommendController"]
+        P_mysql [shape=cylinder style=filled fillcolor="#A5D6A7" label="MySQL"]
+        P_py    [shape=box style="filled,rounded" fillcolor="#FFE082" label="Python FastAPI\n:8000"]
+    }
+
+    // ── 生命线节点（隐藏，用于时间轴对齐）───────────────────────
+    node [shape=point width=0 height=0 label=""]
+
+    fe0;  fe1;  fe2;  fe3;  fe4;  fe5;  fe6;  fe7;  fe8;  fe9
+    au0;  au1;  au2;  au3;  au4;  au5;  au6;  au7;  au8;  au9
+    re0;  re1;  re2;  re3;  re4;  re5;  re6;  re7;  re8;  re9
+    my0;  my1;  my2;  my3;  my4;  my5;  my6;  my7;  my8;  my9
+    py0;  py1;  py2;  py3;  py4;  py5;  py6;  py7;  py8;  py9
+
+    // ── 同一时刻对齐 ────────────────────────────────────────────
+    { rank=same  fe0  au0  re0  my0  py0 }
+    { rank=same  fe1  au1  re1  my1  py1 }
+    { rank=same  fe2  au2  re2  my2  py2 }
+    { rank=same  fe3  au3  re3  my3  py3 }
+    { rank=same  fe4  au4  re4  my4  py4 }
+    { rank=same  fe5  au5  re5  my5  py5 }
+    { rank=same  fe6  au6  re6  my6  py6 }
+    { rank=same  fe7  au7  re7  my7  py7 }
+    { rank=same  fe8  au8  re8  my8  py8 }
+    { rank=same  fe9  au9  re9  my9  py9 }
+
+    // ── 生命线（虚线竖轴）───────────────────────────────────────
+    edge [style=dashed arrowhead=none color="#AAAAAA" weight=20]
+    P_fe  -> fe0 -> fe1 -> fe2 -> fe3 -> fe4 -> fe5 -> fe6 -> fe7 -> fe8 -> fe9
+    P_auth -> au0 -> au1 -> au2 -> au3 -> au4 -> au5 -> au6 -> au7 -> au8 -> au9
+    P_rec -> re0 -> re1 -> re2 -> re3 -> re4 -> re5 -> re6 -> re7 -> re8 -> re9
+    P_mysql -> my0 -> my1 -> my2 -> my3 -> my4 -> my5 -> my6 -> my7 -> my8 -> my9
+    P_py -> py0 -> py1 -> py2 -> py3 -> py4 -> py5 -> py6 -> py7 -> py8 -> py9
+
+    // ── 消息（实线横向箭头）─────────────────────────────────────
+    edge [style=solid arrowhead=vee color="#333333" weight=1]
+
+    fe0 -> au0  [label="① POST /api/auth/login\n  {username, password}"]
+    au1 -> my1  [label="② SELECT * FROM sys_user\n  WHERE username=?"]
+    my2 -> au2  [label="③ 返回用户记录"]
+    au3 -> fe3  [label="④ 返回 JWT Token + 用户信息"]
+
+    // 登录成功后自动触发推荐
+    fe4 -> re4  [label="⑤ GET /api/recommendations\n  (携带 JWT Token)"]
+    re5 -> my5  [label="⑥ 查询 user_kc_state\n  user_exercise_forget"]
+    my6 -> re6  [label="⑦ 返回 mlkc / pkc / exfr 缓存数据"]
+    re7 -> py7  [label="⑧ POST /api/v1/recommend\n  {mlkc, pkc, exfr, top_n:10}\n  X-API-Key: ***"]
+    py8 -> re8  [label="⑨ 返回 Top-10 推荐习题列表\n  [{exercise_id, score, kcs}]"]
+    re9 -> fe9  [label="⑩ 返回推荐结果（含习题详情）"]
+}

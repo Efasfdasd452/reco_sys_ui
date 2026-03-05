@@ -1,0 +1,82 @@
+// ══════════════════════════════════════════════════════
+//  序列图 2：学生提交答题
+//  覆盖两条子路径：
+//    A. 客观题 → 系统自动判题
+//    B. 问答题 → 进入待批改队列 → 教师批改
+// ══════════════════════════════════════════════════════
+digraph Seq2_Submit {
+
+    graph [
+        label    = "序列图 2：学生提交答题"
+        labelloc = t
+        rankdir  = TB
+        fontname = "Microsoft YaHei"
+        fontsize = 16
+        bgcolor  = white
+        nodesep  = 1.6
+        ranksep  = 0.38
+        splines  = ortho
+    ]
+    node [fontname="Microsoft YaHei" fontsize=11]
+    edge [fontname="Microsoft YaHei" fontsize=10]
+
+    // ── 参与者头部 ──────────────────────────────────────
+    { rank=same
+        P_fe      [shape=box style="filled,rounded" fillcolor="#BBDEFB" label="前端\n(React)"]
+        P_learn   [shape=box style="filled,rounded" fillcolor="#F8BBD0" label="LearningController"]
+        P_assess  [shape=box style="filled,rounded" fillcolor="#CE93D8" label="AssessmentService"]
+        P_mysql   [shape=cylinder style=filled fillcolor="#A5D6A7" label="MySQL"]
+        P_teacher [shape=box style="filled,rounded" fillcolor="#FFE082" label="教师前端"]
+    }
+
+    // ── 生命线节点 ──────────────────────────────────────
+    node [shape=point width=0 height=0 label=""]
+
+    fe0; fe1; fe2; fe3; fe4; fe5; fe6; fe7; fe8; fe9; fe10; fe11
+    le0; le1; le2; le3; le4; le5; le6; le7; le8; le9; le10; le11
+    as0; as1; as2; as3; as4; as5; as6; as7; as8; as9; as10; as11
+    my0; my1; my2; my3; my4; my5; my6; my7; my8; my9; my10; my11
+    tc0; tc1; tc2; tc3; tc4; tc5; tc6; tc7; tc8; tc9; tc10; tc11
+
+    { rank=same  fe0  le0  as0  my0  tc0 }
+    { rank=same  fe1  le1  as1  my1  tc1 }
+    { rank=same  fe2  le2  as2  my2  tc2 }
+    { rank=same  fe3  le3  as3  my3  tc3 }
+    { rank=same  fe4  le4  as4  my4  tc4 }
+    { rank=same  fe5  le5  as5  my5  tc5 }
+    { rank=same  fe6  le6  as6  my6  tc6 }
+    { rank=same  fe7  le7  as7  my7  tc7 }
+    { rank=same  fe8  le8  as8  my8  tc8 }
+    { rank=same  fe9  le9  as9  my9  tc9 }
+    { rank=same  fe10 le10 as10 my10 tc10 }
+    { rank=same  fe11 le11 as11 my11 tc11 }
+
+    // ── 生命线 ──────────────────────────────────────────
+    edge [style=dashed arrowhead=none color="#AAAAAA" weight=20]
+    P_fe     -> fe0  -> fe1  -> fe2  -> fe3  -> fe4  -> fe5  -> fe6  -> fe7  -> fe8  -> fe9  -> fe10 -> fe11
+    P_learn  -> le0  -> le1  -> le2  -> le3  -> le4  -> le5  -> le6  -> le7  -> le8  -> le9  -> le10 -> le11
+    P_assess -> as0  -> as1  -> as2  -> as3  -> as4  -> as5  -> as6  -> as7  -> as8  -> as9  -> as10 -> as11
+    P_mysql  -> my0  -> my1  -> my2  -> my3  -> my4  -> my5  -> my6  -> my7  -> my8  -> my9  -> my10 -> my11
+    P_teacher-> tc0  -> tc1  -> tc2  -> tc3  -> tc4  -> tc5  -> tc6  -> tc7  -> tc8  -> tc9  -> tc10 -> tc11
+
+    // ── 消息 ────────────────────────────────────────────
+    edge [style=solid arrowhead=vee color="#333333" weight=1]
+
+    fe0  -> le0   [label="① POST /api/learning/submit\n  {exerciseId, userAnswer, timeSpent}"]
+    le1  -> my1   [label="② INSERT INTO answer_record\n  (grade_status=PENDING/GRADED)"]
+
+    // 路径 A：客观题自动判题
+    le2  -> as2   [label="③-A 题型=客观题\n  调用 AutoGradeService"]
+    as3  -> my3   [label="④-A UPDATE answer_record\n  SET is_correct=?, grade_status='GRADED'"]
+    as4  -> le4   [label="⑤-A 返回判题结果"]
+    le5  -> as5   [label="⑥-A 异步更新\n  user_kc_state / user_exercise_forget"]
+    as6  -> my6   [label="⑦-A UPDATE user_kc_state\n  UPDATE user_exercise_forget"]
+    le7  -> fe7   [label="⑧-A 返回 {isCorrect, score, analysis}"]
+
+    // 路径 B：问答题进入待批改
+    le8  -> fe8   [label="③-B 题型=问答题\n  返回 {status:'PENDING', msg:'等待教师批改'}"]
+    tc9  -> le9   [label="④-B 教师 GET /api/grade/pending\n  获取待批改列表"]
+    le10 -> my10  [label="⑤-B SELECT * FROM answer_record\n  WHERE grade_status='PENDING'"]
+    tc10 -> le10  [label="⑥-B POST /api/grade/{id}\n  {score, teacherComment}"]
+    le11 -> my11  [label="⑦-B UPDATE answer_record\n  SET grade_status='GRADED', score=?, teacher_comment=?"]
+}
