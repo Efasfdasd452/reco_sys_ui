@@ -1,0 +1,56 @@
+# ===== 编译产物 =====
+target/
+out/
+build/
+!**/src/main/**/target/
+!**/src/test/**/target/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# ===== 敏感配置（不上传真实配置，用 .example 代替）=====
+src/main/resources/application.properties
+src/main/resources/application-*.properties
+!src/main/resources/application.properties.example
+
+# ===== 上传文件目录 =====
+uploads/
+
+# ===== Maven Wrapper jar =====
+.mvn/wrapper/maven-wrapper.jar
+
+# ===== IntelliJ IDEA =====
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# ===== Eclipse / STS =====
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+# ===== NetBeans =====
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+# ===== VS Code =====
+.vscode/
+
+# ===== 日志 =====
+*.log
+logs/
+
+# ===== 临时文件 =====
+*.tmp
+*.swp
+
+# ===== 系统文件 =====
+.DS_Store
+Thumbs.db
