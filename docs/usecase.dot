@@ -1,0 +1,136 @@
+digraph UseCaseDiagram {
+
+    graph [
+        label       = "习题推荐系统 — 用例图"
+        labelloc    = t
+        fontname    = "Microsoft YaHei"
+        fontsize    = 18
+        rankdir     = LR
+        splines     = curved
+        nodesep     = 0.6
+        ranksep     = 2.0
+        bgcolor     = white
+    ]
+
+    // ─────────────────────────────────────────
+    // 参与者（Actor）样式
+    // ─────────────────────────────────────────
+    node [shape=plaintext fontname="Microsoft YaHei" fontsize=13]
+
+    student   [label="学生"]
+    teacher   [label="教师"]
+    admin     [label="管理员"]
+    pyservice [label="推荐算法服务\n(Python FastAPI)"]
+
+    // ─────────────────────────────────────────
+    // 系统边界
+    // ─────────────────────────────────────────
+    subgraph cluster_system {
+        label     = "习题推荐系统"
+        style     = solid
+        color     = "#4A90D9"
+        penwidth  = 2
+        fontname  = "Microsoft YaHei"
+        fontsize  = 15
+        bgcolor   = "#F0F7FF"
+
+        // 用例节点样式
+        node [shape=ellipse style="filled" fontname="Microsoft YaHei" fontsize=12 penwidth=1.2]
+
+        // ── 认证模块 ──────────────────────────
+        node [fillcolor="#FFF9C4" color="#CCAA00"]
+        uc_register   [label="注册"]
+        uc_login      [label="登录"]
+
+        // ── 学生用例 ──────────────────────────
+        node [fillcolor="#E8F5E9" color="#388E3C"]
+        uc_browse_ex   [label="浏览习题"]
+        uc_submit      [label="提交答题"]
+        uc_view_hist   [label="查看答题记录"]
+        uc_view_state  [label="查看学习状态\n（知识点掌握度）"]
+        uc_view_rec    [label="查看推荐习题"]
+        uc_refresh_rec [label="手动刷新推荐"]
+        uc_profile     [label="修改个人信息"]
+
+        // ── 教师用例 ──────────────────────────
+        node [fillcolor="#FFF3E0" color="#E65100"]
+        uc_manage_course [label="管理课程"]
+        uc_manage_kp     [label="管理知识点"]
+        uc_manage_ex     [label="管理习题"]
+        uc_upload_img    [label="上传图片"]
+        uc_grade         [label="批改问答题"]
+        uc_view_student  [label="查看学生学习状态"]
+        uc_class_stat    [label="查看班级统计"]
+
+        // ── 管理员用例 ────────────────────────
+        node [fillcolor="#FCE4EC" color="#AD1457"]
+        uc_manage_user [label="用户管理"]
+        uc_sys_stat    [label="系统数据统计"]
+
+        // ── 系统自动用例 ──────────────────────
+        node [fillcolor="#EDE7F6" color="#6A1B9A"]
+        uc_auto_grade  [label="自动判题\n（选择/判断题）"]
+        uc_auto_rec    [label="自动触发推荐\n（登录时）"]
+        uc_call_py     [label="调用推荐算法接口"]
+        uc_update_state [label="更新知识点状态缓存"]
+    }
+
+    // ─────────────────────────────────────────
+    // 关联关系（参与者 → 用例）
+    // ─────────────────────────────────────────
+    edge [arrowhead=none color="#555555" penwidth=1.2]
+
+    // 学生
+    student -> uc_register
+    student -> uc_login
+    student -> uc_browse_ex
+    student -> uc_submit
+    student -> uc_view_hist
+    student -> uc_view_state
+    student -> uc_view_rec
+    student -> uc_refresh_rec
+    student -> uc_profile
+
+    // 教师
+    teacher -> uc_login
+    teacher -> uc_manage_course
+    teacher -> uc_manage_kp
+    teacher -> uc_manage_ex
+    teacher -> uc_grade
+    teacher -> uc_view_student
+    teacher -> uc_class_stat
+
+    // 管理员
+    admin -> uc_login
+    admin -> uc_manage_user
+    admin -> uc_sys_stat
+    admin -> uc_class_stat
+
+    // 推荐算法服务
+    pyservice -> uc_call_py
+
+    // ─────────────────────────────────────────
+    // include / extend 关系
+    // ─────────────────────────────────────────
+    edge [arrowhead=open style=dashed color="#888888" fontname="Microsoft YaHei" fontsize=10]
+
+    // include：提交答题 → 自动判题
+    uc_submit       -> uc_auto_grade    [label="«include»"]
+
+    // include：提交答题 → 更新知识点状态
+    uc_submit       -> uc_update_state  [label="«include»"]
+
+    // include：管理习题 → 上传图片
+    uc_manage_ex    -> uc_upload_img    [label="«include»"]
+
+    // include：查看推荐 / 自动推荐 → 调用算法
+    uc_view_rec     -> uc_call_py       [label="«include»"]
+    uc_refresh_rec  -> uc_call_py       [label="«include»"]
+    uc_auto_rec     -> uc_call_py       [label="«include»"]
+
+    // extend：登录成功 → 自动触发推荐
+    uc_auto_rec     -> uc_login         [label="«extend»"]
+
+    // extend：问答题提交 → 进入待批改队列
+    uc_grade        -> uc_submit        [label="«extend»"]
+}
