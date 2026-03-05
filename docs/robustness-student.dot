@@ -1,0 +1,234 @@
+// ══════════════════════════════════════════════════════════════
+//  鲁棒图（学生侧）
+//  覆盖用例：
+//    UC1  用户登录
+//    UC2  浏览习题
+//    UC3  提交答题（客观题自动判题）
+//    UC4  查看学习状态
+//    UC5  获取推荐习题（自动 + 手动刷新）
+//
+//  节点约定：
+//    Actor    → plaintext
+//    Boundary → 方框  fillcolor=#BBDEFB  (蓝)  <<Boundary>>
+//    Control  → 椭圆  fillcolor=#FFE0B2  (橙)  <<Control>>
+//    Entity   → 圆柱  fillcolor=#C8E6C9  (绿)  <<Entity>>
+// ══════════════════════════════════════════════════════════════
+digraph Robustness_Student {
+
+    graph [
+        label    = "鲁棒图 — 学生侧用例"
+        labelloc = t
+        rankdir  = LR
+        fontname = "Microsoft YaHei"
+        fontsize = 17
+        bgcolor  = "#FAFAFA"
+        nodesep  = 0.5
+        ranksep  = 1.2
+        splines  = curved
+        compound = true
+    ]
+    node [fontname="Microsoft YaHei" fontsize=11]
+    edge [fontname="Microsoft YaHei" fontsize=10 color="#444444"]
+
+    // ── 图例 ────────────────────────────────────────────────────
+    subgraph cluster_legend {
+        label    = "图例"
+        style    = dashed
+        color    = "#AAAAAA"
+        fontsize = 12
+        bgcolor  = white
+
+        lg_actor [label="学生 / 教师\n(参与者)"   shape=plaintext fontsize=11]
+        lg_bnd   [label="<<Boundary>>\n边界对象\n(界面/API)"  shape=box    style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        lg_ctrl  [label="<<Control>>\n控制对象\n(业务服务)"   shape=ellipse style=filled         fillcolor="#FFE0B2" color="#E65100"]
+        lg_ent   [label="<<Entity>>\n实体对象\n(数据模型)"    shape=cylinder style=filled        fillcolor="#C8E6C9" color="#1B5E20"]
+
+        lg_actor -> lg_bnd -> lg_ctrl -> lg_ent [style=invis]
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // UC1  用户登录
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc1 {
+        label    = "UC1  用户登录"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#1565C0"
+        penwidth = 2
+        fontsize = 13
+
+        // Actor
+        u1_actor [label="学生 / 教师\n/ 管理员" shape=plaintext]
+
+        // Boundary
+        u1_b1 [label="<<Boundary>>\n登录页面"           shape=box     style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u1_b2 [label="<<Boundary>>\nPOST /api/auth/login" shape=box   style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        // Control
+        u1_c1 [label="<<Control>>\nAuthService\n验证用户名/密码"  shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u1_c2 [label="<<Control>>\nJwtService\n生成 JWT Token"    shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        // Entity
+        u1_e1 [label="<<Entity>>\nsys_user"  shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u1_e2 [label="<<Entity>>\nJWT Token" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u1_actor -> u1_b1  [label="输入账号密码"]
+    u1_b1    -> u1_b2  [label="提交"]
+    u1_b2    -> u1_c1
+    u1_c1    -> u1_e1  [label="查询"]
+    u1_e1    -> u1_c1  [label="返回用户记录"]
+    u1_c1    -> u1_c2  [label="验证通过"]
+    u1_c2    -> u1_e2  [label="生成"]
+    u1_e2    -> u1_b1  [label="返回 Token"]
+    u1_b1    -> u1_actor [label="登录成功\n跳转主页"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC2  浏览习题
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc2 {
+        label    = "UC2  浏览习题"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#1565C0"
+        penwidth = 2
+        fontsize = 13
+
+        u2_actor [label="学生" shape=plaintext]
+
+        u2_b1 [label="<<Boundary>>\n习题列表页"              shape=box     style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u2_b2 [label="<<Boundary>>\nGET /api/exercises\n?courseId&difficulty&keyword" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        u2_c1 [label="<<Control>>\nExerciseService\n分页查询 + 条件过滤" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        u2_e1 [label="<<Entity>>\nexercise"        shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u2_e2 [label="<<Entity>>\nknowledge_point" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u2_actor -> u2_b1  [label="选择课程/难度/关键词"]
+    u2_b1    -> u2_b2  [label="请求"]
+    u2_b2    -> u2_c1
+    u2_c1    -> u2_e1  [label="查询"]
+    u2_c1    -> u2_e2  [label="查询关联知识点"]
+    u2_e1    -> u2_c1  [label="习题列表"]
+    u2_e2    -> u2_c1  [label="知识点标签"]
+    u2_c1    -> u2_b1  [label="返回分页结果"]
+    u2_b1    -> u2_actor [label="展示习题列表"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC3  提交答题（客观题自动判题）
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc3 {
+        label    = "UC3  提交答题（客观题 — 自动判题）"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#AD1457"
+        penwidth = 2
+        fontsize = 13
+
+        u3_actor [label="学生" shape=plaintext]
+
+        u3_b1 [label="<<Boundary>>\n答题页面"               shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u3_b2 [label="<<Boundary>>\nPOST /api/learning/submit" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        u3_c1 [label="<<Control>>\nLearningService\n保存答题记录"        shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u3_c2 [label="<<Control>>\nAutoGradeService\n比对标准答案判对错"  shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u3_c3 [label="<<Control>>\nAssessmentService\n异步更新知识点状态" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        u3_e1 [label="<<Entity>>\nanswer_record"       shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u3_e2 [label="<<Entity>>\nexercise\n(标准答案)" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u3_e3 [label="<<Entity>>\nuser_kc_state"       shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u3_e4 [label="<<Entity>>\nuser_exercise_forget" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u3_actor -> u3_b1  [label="选择答案/提交"]
+    u3_b1    -> u3_b2
+    u3_b2    -> u3_c1
+    u3_c1    -> u3_e1  [label="INSERT 答题记录"]
+    u3_c1    -> u3_c2  [label="调用自动判题"]
+    u3_c2    -> u3_e2  [label="读取标准答案"]
+    u3_e2    -> u3_c2  [label="返回答案"]
+    u3_c2    -> u3_e1  [label="UPDATE is_correct\ngrade_status=GRADED"]
+    u3_c2    -> u3_c3  [label="异步触发"]
+    u3_c3    -> u3_e3  [label="UPDATE mastery_level\nappear_prob"]
+    u3_c3    -> u3_e4  [label="UPDATE forget_rate"]
+    u3_c1    -> u3_b1  [label="返回判题结果\n{isCorrect, score, analysis}"]
+    u3_b1    -> u3_actor [label="展示答题反馈"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC4  查看学习状态
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc4 {
+        label    = "UC4  查看学习状态"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#1565C0"
+        penwidth = 2
+        fontsize = 13
+
+        u4_actor [label="学生" shape=plaintext]
+
+        u4_b1 [label="<<Boundary>>\n学习状态页\n(知识点掌握度图表)"      shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u4_b2 [label="<<Boundary>>\nGET /api/assessment/state" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        u4_c1 [label="<<Control>>\nAssessmentService\n聚合统计 + 薄弱点分析" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        u4_e1 [label="<<Entity>>\nuser_kc_state\n(掌握度/出现概率)" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u4_e2 [label="<<Entity>>\nanswer_record\n(答题历史)"        shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u4_e3 [label="<<Entity>>\nknowledge_point\n(知识点名称)"    shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u4_actor -> u4_b1  [label="查看学习状态"]
+    u4_b1    -> u4_b2
+    u4_b2    -> u4_c1
+    u4_c1    -> u4_e1  [label="查询各知识点掌握度"]
+    u4_c1    -> u4_e2  [label="查询近期答题记录"]
+    u4_c1    -> u4_e3  [label="获取知识点名称"]
+    u4_e1    -> u4_c1
+    u4_e2    -> u4_c1
+    u4_e3    -> u4_c1
+    u4_c1    -> u4_b1  [label="返回掌握度数组\n薄弱知识点列表\n答题正确率趋势"]
+    u4_b1    -> u4_actor [label="雷达图/折线图展示"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC5  获取推荐习题
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc5 {
+        label    = "UC5  获取推荐习题（自动 + 手动刷新）"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#F57F17"
+        penwidth = 2
+        fontsize = 13
+
+        u5_actor [label="学生" shape=plaintext]
+
+        u5_b1  [label="<<Boundary>>\n推荐习题页"                   shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u5_b2  [label="<<Boundary>>\nGET /api/recommendations\nPOST /api/recommendations/refresh" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u5_b3  [label="<<Boundary>>\nPython FastAPI\nPOST /api/v1/recommend" shape=box style="filled,bold" fillcolor="#FFE082" color="#F57F17"]
+
+        u5_c1  [label="<<Control>>\nRecommendService\n读取状态 → 调用算法\n保存记录"      shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        u5_e1  [label="<<Entity>>\nuser_kc_state\n(mlkc / pkc)"     shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u5_e2  [label="<<Entity>>\nuser_exercise_forget\n(exfr)"    shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u5_e3  [label="<<Entity>>\nrecommendation_record"           shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u5_e4  [label="<<Entity>>\nrec_exercise_item"               shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u5_e5  [label="<<Entity>>\nexercise\n(习题详情)"            shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u5_actor -> u5_b1  [label="进入推荐页\n/ 点击刷新"]
+    u5_b1    -> u5_b2  [label="自动/手动触发"]
+    u5_b2    -> u5_c1
+    u5_c1    -> u5_e1  [label="查询 mlkc/pkc"]
+    u5_c1    -> u5_e2  [label="查询 exfr"]
+    u5_e1    -> u5_c1
+    u5_e2    -> u5_c1
+    u5_c1    -> u5_b3  [label="POST {mlkc,pkc,exfr}\nX-API-Key"]
+    u5_b3    -> u5_c1  [label="Top-N 推荐列表\n[{exercise_id, score}]"]
+    u5_c1    -> u5_e3  [label="INSERT 推荐记录"]
+    u5_c1    -> u5_e4  [label="INSERT 明细"]
+    u5_c1    -> u5_e5  [label="查询习题详情"]
+    u5_e5    -> u5_c1
+    u5_c1    -> u5_b1  [label="返回推荐习题列表"]
+    u5_b1    -> u5_actor [label="展示推荐结果\n(含知识点标签/难度)"]
+}

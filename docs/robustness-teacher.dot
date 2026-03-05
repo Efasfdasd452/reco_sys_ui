@@ -1,0 +1,219 @@
+// ══════════════════════════════════════════════════════════════
+//  鲁棒图（教师 / 管理员侧）
+//  覆盖用例：
+//    UC6  提交答题（问答题）+ 教师批改
+//    UC7  教师管理习题（含图片上传）
+//    UC8  教师管理知识点
+//    UC9  查看班级统计
+//    UC10 管理员用户管理
+//
+//  节点约定：
+//    Boundary → 方框  fillcolor=#BBDEFB  <<Boundary>>
+//    Control  → 椭圆  fillcolor=#FFE0B2  <<Control>>
+//    Entity   → 圆柱  fillcolor=#C8E6C9  <<Entity>>
+// ══════════════════════════════════════════════════════════════
+digraph Robustness_Teacher {
+
+    graph [
+        label    = "鲁棒图 — 教师 / 管理员侧用例"
+        labelloc = t
+        rankdir  = LR
+        fontname = "Microsoft YaHei"
+        fontsize = 17
+        bgcolor  = "#FAFAFA"
+        nodesep  = 0.5
+        ranksep  = 1.2
+        splines  = curved
+        compound = true
+    ]
+    node [fontname="Microsoft YaHei" fontsize=11]
+    edge [fontname="Microsoft YaHei" fontsize=10 color="#444444"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC6  问答题提交 + 教师批改
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc6 {
+        label    = "UC6  问答题提交 + 教师批改"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#AD1457"
+        penwidth = 2
+        fontsize = 13
+
+        u6_student [label="学生"   shape=plaintext]
+        u6_teacher [label="教师"   shape=plaintext]
+
+        // Boundary
+        u6_b1 [label="<<Boundary>>\n答题页面\nPOST /api/learning/submit"   shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u6_b2 [label="<<Boundary>>\n待批改列表页\nGET /api/grade/pending"  shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u6_b3 [label="<<Boundary>>\n批改操作\nPOST /api/grade/{id}"        shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        // Control
+        u6_c1 [label="<<Control>>\nLearningService\n保存记录\ngrade_status=PENDING" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u6_c2 [label="<<Control>>\nGradeService\n查询待批改列表"                   shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u6_c3 [label="<<Control>>\nGradeService\n更新批改结果"                     shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        // Entity
+        u6_e1 [label="<<Entity>>\nanswer_record\ngrade_status=PENDING" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u6_student -> u6_b1   [label="提交问答题"]
+    u6_b1      -> u6_c1
+    u6_c1      -> u6_e1   [label="INSERT\ngrade_type=MANUAL\ngrade_status=PENDING"]
+    u6_c1      -> u6_b1   [label="提示：等待批改"]
+    u6_b1      -> u6_student [label="展示待批改提示"]
+
+    u6_teacher -> u6_b2   [label="查看待批改列表"]
+    u6_b2      -> u6_c2
+    u6_c2      -> u6_e1   [label="SELECT WHERE\ngrade_status=PENDING"]
+    u6_e1      -> u6_c2   [label="待批改记录列表"]
+    u6_c2      -> u6_b2   [label="返回列表"]
+
+    u6_teacher -> u6_b3   [label="填写分数+评语\n提交批改"]
+    u6_b3      -> u6_c3
+    u6_c3      -> u6_e1   [label="UPDATE score\nteacher_comment\ngrade_status=GRADED\ngraded_by=teacherId"]
+    u6_c3      -> u6_b3   [label="批改成功"]
+    u6_b3      -> u6_teacher [label="提示批改完成"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC7  教师管理习题（含图片上传）
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc7 {
+        label    = "UC7  教师管理习题（含图片上传）"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#E65100"
+        penwidth = 2
+        fontsize = 13
+
+        u7_teacher [label="教师" shape=plaintext]
+
+        // Boundary
+        u7_b1 [label="<<Boundary>>\n习题管理页（Markdown编辑器）"             shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u7_b2 [label="<<Boundary>>\nPOST /api/files/upload\n(图片上传)"       shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u7_b3 [label="<<Boundary>>\nPOST /api/exercises\nPUT /api/exercises/{id}\nDELETE /api/exercises/{id}" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        // Control
+        u7_c1 [label="<<Control>>\nFileService\n存储图片\n返回访问URL"                shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u7_c2 [label="<<Control>>\nExerciseService\n习题 CRUD"                       shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u7_c3 [label="<<Control>>\nKnowledgeService\n同步更新习题-知识点关联\n(MySQL + Neo4j)" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        // Entity
+        u7_e1 [label="<<Entity>>\n文件系统\n/uploads/"     shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u7_e2 [label="<<Entity>>\nexercise"               shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u7_e3 [label="<<Entity>>\nexercise_kp_rel"        shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u7_e4 [label="<<Entity>>\nNeo4j\n(:Exercise)-[:BELONGS_TO]->(:KP)" shape=cylinder style=filled fillcolor="#DCEDC8" color="#558B2F"]
+    }
+
+    u7_teacher -> u7_b1   [label="编写题目\n(Markdown)"]
+    u7_b1      -> u7_b2   [label="上传图片"]
+    u7_b2      -> u7_c1
+    u7_c1      -> u7_e1   [label="写入文件"]
+    u7_e1      -> u7_c1   [label="文件路径"]
+    u7_c1      -> u7_b1   [label="返回图片URL\n插入Markdown"]
+
+    u7_b1      -> u7_b3   [label="保存习题\n(含知识点选择)"]
+    u7_b3      -> u7_c2
+    u7_c2      -> u7_e2   [label="INSERT/UPDATE/DELETE"]
+    u7_c2      -> u7_c3   [label="同步知识点关联"]
+    u7_c3      -> u7_e3   [label="更新 MySQL 关联表"]
+    u7_c3      -> u7_e4   [label="更新 Neo4j 图关系"]
+    u7_c2      -> u7_b1   [label="操作结果"]
+    u7_b1      -> u7_teacher [label="提示成功/失败"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC8  教师管理知识点（知识图谱维护）
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc8 {
+        label    = "UC8  教师管理知识点（知识图谱维护）"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#4A148C"
+        penwidth = 2
+        fontsize = 13
+
+        u8_teacher [label="教师" shape=plaintext]
+
+        u8_b1 [label="<<Boundary>>\n知识图谱管理页"                shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u8_b2 [label="<<Boundary>>\nPOST /api/knowledge\nPUT /api/knowledge/{id}\n管理节点与关系" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        u8_c1 [label="<<Control>>\nKnowledgeService\n知识点 CRUD\n维护前置/相关关系"    shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        u8_e1 [label="<<Entity>>\nknowledge_point\n(MySQL基础信息)"               shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u8_e2 [label="<<Entity>>\nNeo4j\n(:KP)-[:PREREQUISITE|RELATED_TO]->(:KP)" shape=cylinder style=filled fillcolor="#DCEDC8" color="#558B2F"]
+    }
+
+    u8_teacher -> u8_b1  [label="新建/编辑知识点\n设置前置关系"]
+    u8_b1      -> u8_b2  [label="提交"]
+    u8_b2      -> u8_c1
+    u8_c1      -> u8_e1  [label="INSERT/UPDATE\nMySQL基础信息"]
+    u8_c1      -> u8_e2  [label="CREATE/MERGE\nNeo4j 节点与关系"]
+    u8_e1      -> u8_c1
+    u8_e2      -> u8_c1
+    u8_c1      -> u8_b1  [label="操作结果"]
+    u8_b1      -> u8_teacher [label="知识图谱更新成功"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC9  查看班级统计
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc9 {
+        label    = "UC9  查看班级统计"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#1B5E20"
+        penwidth = 2
+        fontsize = 13
+
+        u9_teacher [label="教师" shape=plaintext]
+
+        u9_b1 [label="<<Boundary>>\n班级统计页"               shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u9_b2 [label="<<Boundary>>\nGET /api/statistics/class" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        u9_c1 [label="<<Control>>\nStatService\n聚合班级答题数据\n统计共同薄弱知识点" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        u9_e1 [label="<<Entity>>\nanswer_record\n(班级答题历史)" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u9_e2 [label="<<Entity>>\nuser_kc_state\n(各学生掌握度)" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u9_e3 [label="<<Entity>>\nknowledge_point" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u9_teacher -> u9_b1  [label="查看班级统计"]
+    u9_b1      -> u9_b2
+    u9_b2      -> u9_c1
+    u9_c1      -> u9_e1  [label="GROUP BY user_id\n统计正确率"]
+    u9_c1      -> u9_e2  [label="统计班级平均\n掌握度"]
+    u9_c1      -> u9_e3  [label="获取知识点名称"]
+    u9_e1      -> u9_c1
+    u9_e2      -> u9_c1
+    u9_e3      -> u9_c1
+    u9_c1      -> u9_b1  [label="返回统计数据\n共同薄弱点"]
+    u9_b1      -> u9_teacher [label="柱状图/热力图展示"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC10 管理员用户管理
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc10 {
+        label    = "UC10  管理员用户管理"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#1565C0"
+        penwidth = 2
+        fontsize = 13
+
+        u10_admin [label="管理员" shape=plaintext]
+
+        u10_b1 [label="<<Boundary>>\n用户管理页"                    shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u10_b2 [label="<<Boundary>>\nGET /api/users\nPUT /api/users/{id}\nDELETE /api/users/{id}" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        u10_c1 [label="<<Control>>\nUserService\n查询/修改/禁用用户\n分配角色" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        u10_e1 [label="<<Entity>>\nsys_user" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u10_admin -> u10_b1   [label="搜索/编辑用户"]
+    u10_b1    -> u10_b2
+    u10_b2    -> u10_c1
+    u10_c1    -> u10_e1   [label="SELECT/UPDATE/\n逻辑DELETE\n(status=0)"]
+    u10_e1    -> u10_c1   [label="用户数据"]
+    u10_c1    -> u10_b1   [label="操作结果"]
+    u10_b1    -> u10_admin [label="用户列表更新"]
+}
