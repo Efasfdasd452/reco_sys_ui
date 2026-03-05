@@ -152,6 +152,71 @@ digraph ER {
         </TABLE>
     >]
 
+    user_course [label=<
+        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD COLSPAN="3" BGCOLOR="#37474F"><FONT COLOR="white"><B> user_course （学生选课）</B></FONT></TD></TR>
+        <TR><TD BGCOLOR="#ECEFF1"><B>字段</B></TD><TD BGCOLOR="#ECEFF1"><B>类型</B></TD><TD BGCOLOR="#ECEFF1"><B>说明</B></TD></TR>
+        <TR><TD PORT="id" ALIGN="LEFT">🔑 id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">主键</TD></TR>
+        <TR><TD PORT="user_id" ALIGN="LEFT">🔗 user_id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">FK→sys_user</TD></TR>
+        <TR><TD PORT="course_id" ALIGN="LEFT">🔗 course_id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">FK→course</TD></TR>
+        <TR><TD ALIGN="LEFT">joined_at</TD><TD ALIGN="LEFT">DATETIME</TD><TD ALIGN="LEFT">加入时间</TD></TR>
+        </TABLE>
+    >]
+
+    email_verification [label=<
+        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD COLSPAN="3" BGCOLOR="#1565C0"><FONT COLOR="white"><B> email_verification （邮箱验证码）</B></FONT></TD></TR>
+        <TR><TD BGCOLOR="#BBDEFB"><B>字段</B></TD><TD BGCOLOR="#BBDEFB"><B>类型</B></TD><TD BGCOLOR="#BBDEFB"><B>说明</B></TD></TR>
+        <TR><TD PORT="id" ALIGN="LEFT">🔑 id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">主键</TD></TR>
+        <TR><TD ALIGN="LEFT">email</TD><TD ALIGN="LEFT">VARCHAR(100)</TD><TD ALIGN="LEFT">目标邮箱</TD></TR>
+        <TR><TD ALIGN="LEFT">code</TD><TD ALIGN="LEFT">VARCHAR(6)</TD><TD ALIGN="LEFT">6位验证码</TD></TR>
+        <TR><TD ALIGN="LEFT">type</TD><TD ALIGN="LEFT">ENUM</TD><TD ALIGN="LEFT">REGISTER/RESET_PASSWORD</TD></TR>
+        <TR><TD ALIGN="LEFT">expires_at</TD><TD ALIGN="LEFT">DATETIME</TD><TD ALIGN="LEFT">过期时间(+5min)</TD></TR>
+        <TR><TD ALIGN="LEFT">is_used</TD><TD ALIGN="LEFT">TINYINT</TD><TD ALIGN="LEFT">是否已使用</TD></TR>
+        </TABLE>
+    >]
+
+    notification [label=<
+        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD COLSPAN="3" BGCOLOR="#AD1457"><FONT COLOR="white"><B> notification （站内通知）</B></FONT></TD></TR>
+        <TR><TD BGCOLOR="#FCE4EC"><B>字段</B></TD><TD BGCOLOR="#FCE4EC"><B>类型</B></TD><TD BGCOLOR="#FCE4EC"><B>说明</B></TD></TR>
+        <TR><TD PORT="id" ALIGN="LEFT">🔑 id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">主键</TD></TR>
+        <TR><TD PORT="user_id" ALIGN="LEFT">🔗 user_id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">FK→sys_user</TD></TR>
+        <TR><TD ALIGN="LEFT">type</TD><TD ALIGN="LEFT">ENUM</TD><TD ALIGN="LEFT">GRADE_DONE/SECURITY_ALERT/SYSTEM</TD></TR>
+        <TR><TD ALIGN="LEFT">title</TD><TD ALIGN="LEFT">VARCHAR(200)</TD><TD ALIGN="LEFT">通知标题</TD></TR>
+        <TR><TD ALIGN="LEFT">content</TD><TD ALIGN="LEFT">TEXT</TD><TD ALIGN="LEFT">通知内容</TD></TR>
+        <TR><TD ALIGN="LEFT">related_id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">关联记录ID</TD></TR>
+        <TR><TD ALIGN="LEFT">is_read</TD><TD ALIGN="LEFT">TINYINT</TD><TD ALIGN="LEFT">是否已读</TD></TR>
+        </TABLE>
+    >]
+
+    login_record [label=<
+        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD COLSPAN="3" BGCOLOR="#4A148C"><FONT COLOR="white"><B> login_record （登录记录）</B></FONT></TD></TR>
+        <TR><TD BGCOLOR="#E1BEE7"><B>字段</B></TD><TD BGCOLOR="#E1BEE7"><B>类型</B></TD><TD BGCOLOR="#E1BEE7"><B>说明</B></TD></TR>
+        <TR><TD PORT="id" ALIGN="LEFT">🔑 id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">主键</TD></TR>
+        <TR><TD PORT="user_id" ALIGN="LEFT">🔗 user_id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">FK→sys_user</TD></TR>
+        <TR><TD ALIGN="LEFT">ip_address</TD><TD ALIGN="LEFT">VARCHAR(45)</TD><TD ALIGN="LEFT">登录IP</TD></TR>
+        <TR><TD ALIGN="LEFT">location</TD><TD ALIGN="LEFT">VARCHAR(100)</TD><TD ALIGN="LEFT">IP解析地理位置</TD></TR>
+        <TR><TD ALIGN="LEFT">user_agent</TD><TD ALIGN="LEFT">VARCHAR(500)</TD><TD ALIGN="LEFT">浏览器/设备</TD></TR>
+        <TR><TD ALIGN="LEFT">status</TD><TD ALIGN="LEFT">ENUM</TD><TD ALIGN="LEFT">SUCCESS/FAILED</TD></TR>
+        <TR><TD ALIGN="LEFT">is_anomaly</TD><TD ALIGN="LEFT">TINYINT</TD><TD ALIGN="LEFT">是否异常登录</TD></TR>
+        </TABLE>
+    >]
+
+    mobile_upload_session [label=<
+        <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0">
+        <TR><TD COLSPAN="3" BGCOLOR="#00695C"><FONT COLOR="white"><B> mobile_upload_session （跨设备上传）</B></FONT></TD></TR>
+        <TR><TD BGCOLOR="#E0F2F1"><B>字段</B></TD><TD BGCOLOR="#E0F2F1"><B>类型</B></TD><TD BGCOLOR="#E0F2F1"><B>说明</B></TD></TR>
+        <TR><TD PORT="id" ALIGN="LEFT">🔑 id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">主键</TD></TR>
+        <TR><TD ALIGN="LEFT">token</TD><TD ALIGN="LEFT">VARCHAR(64)</TD><TD ALIGN="LEFT">一次性Token UNIQUE</TD></TR>
+        <TR><TD PORT="user_id" ALIGN="LEFT">🔗 user_id</TD><TD ALIGN="LEFT">BIGINT</TD><TD ALIGN="LEFT">FK→sys_user</TD></TR>
+        <TR><TD ALIGN="LEFT">image_url</TD><TD ALIGN="LEFT">VARCHAR(500)</TD><TD ALIGN="LEFT">上传后图片地址</TD></TR>
+        <TR><TD ALIGN="LEFT">status</TD><TD ALIGN="LEFT">ENUM</TD><TD ALIGN="LEFT">PENDING/DONE/EXPIRED</TD></TR>
+        <TR><TD ALIGN="LEFT">expires_at</TD><TD ALIGN="LEFT">DATETIME</TD><TD ALIGN="LEFT">过期时间(+5min)</TD></TR>
+        </TABLE>
+    >]
+
     // ─────────────────────────────────────────────────────────────
     // 关系连线（标注基数）
     // ─────────────────────────────────────────────────────────────
@@ -201,4 +266,17 @@ digraph ER {
 
     // exercise → user_exercise_forget（1:N）
     exercise:id -> user_exercise_forget:exercise_id [label="1:N" arrowhead=crow arrowtail=tee dir=both]
+
+    // sys_user ↔ course（M:N 选课）
+    sys_user:id -> user_course:user_id   [label="1:N" arrowhead=crow arrowtail=tee dir=both]
+    course:id   -> user_course:course_id [label="1:N" arrowhead=crow arrowtail=tee dir=both]
+
+    // sys_user → notification（1:N）
+    sys_user:id -> notification:user_id  [label="1:N  通知" arrowhead=crow arrowtail=tee dir=both]
+
+    // sys_user → login_record（1:N）
+    sys_user:id -> login_record:user_id  [label="1:N  登录历史" arrowhead=crow arrowtail=tee dir=both]
+
+    // sys_user → mobile_upload_session（1:N）
+    sys_user:id -> mobile_upload_session:user_id [label="1:N  上传会话" arrowhead=crow arrowtail=tee dir=both]
 }
