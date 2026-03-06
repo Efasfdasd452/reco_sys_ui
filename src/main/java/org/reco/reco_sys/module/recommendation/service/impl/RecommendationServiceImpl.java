@@ -77,18 +77,18 @@ public class RecommendationServiceImpl implements RecommendationService {
         List<RecExerciseItem> items = new ArrayList<>();
         int rank = 1;
         for (PythonRecommendClient.RecommendationItem rec : pyResults) {
-            Exercise ex = exerciseRepository.findByPyExIndex(rec.exercise_id()).orElse(null);
+            Exercise ex = exerciseRepository.findByPyExIndex(rec.getExerciseId()).orElse(null);
             if (ex == null) {
-                log.warn("Python 推荐的 exercise_id={} 未在 MySQL 中找到对应习题，已跳过", rec.exercise_id());
+                log.warn("Python 推荐的 exercise_id={} 未在 MySQL 中找到对应习题，已跳过", rec.getExerciseId());
                 continue;
             }
-            String reason = buildReason(rec.knowledge_concepts(), courseKps);
+            String reason = buildReason(rec.getKnowledgeConcepts(), courseKps);
 
             RecExerciseItem item = new RecExerciseItem();
             item.setRecId(saved.getId());
             item.setExerciseId(ex.getId());
             item.setRankOrder(rank++);
-            item.setScore(rec.score());
+            item.setScore(rec.getScore());
             item.setReason(reason);
             items.add(recItemRepository.save(item));
         }

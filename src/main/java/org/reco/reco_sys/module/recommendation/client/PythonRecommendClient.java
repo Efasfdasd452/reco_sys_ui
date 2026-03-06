@@ -9,6 +9,9 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,8 +63,8 @@ public class PythonRecommendClient {
                     .retrieve()
                     .body(RecommendResponse.class);
 
-            return response != null && response.recommendations() != null
-                    ? response.recommendations()
+            return response != null && response.getRecommendations() != null
+                    ? response.getRecommendations()
                     : List.of();
         } catch (Exception e) {
             log.error("推荐服务调用失败: {}", e.getMessage());
@@ -126,19 +129,25 @@ public class PythonRecommendClient {
     // -------------------------------------------------------------------------
 
     /** 推荐接口响应体 */
-    public record RecommendResponse(
-            String uid,
-            Integer top_n,
-            List<RecommendationItem> recommendations
-    ) {}
+    @Data
+    public static class RecommendResponse {
+        private String uid;
+        @JsonProperty("top_n")
+        private Integer topN;
+        private List<RecommendationItem> recommendations;
+    }
 
     /** 单条推荐结果 */
-    public record RecommendationItem(
-            Integer exercise_id,
-            String exercise_name,
-            Double score,
-            List<Integer> knowledge_concepts
-    ) {}
+    @Data
+    public static class RecommendationItem {
+        @JsonProperty("exercise_id")
+        private Integer exerciseId;
+        @JsonProperty("exercise_name")
+        private String exerciseName;
+        private Double score;
+        @JsonProperty("knowledge_concepts")
+        private List<Integer> knowledgeConcepts;
+    }
 
     /** 知识点元数据 */
     public record KcItem(Integer kcId, String kcName) {}

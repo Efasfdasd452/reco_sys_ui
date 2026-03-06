@@ -32,12 +32,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // 公开接口
                 .requestMatchers(
+                    "/",
                     "/api/auth/**",
                     "/api/files/**",
                     "/mobile-upload/**",
                     "/ws/**",
                     "/swagger-ui/**",
-                    "/v3/api-docs/**"
+                    "/swagger-ui.html",
+                    "/v3/api-docs/**",
+                    "/actuator/health"
                 ).permitAll()
                 // 管理员专属
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
