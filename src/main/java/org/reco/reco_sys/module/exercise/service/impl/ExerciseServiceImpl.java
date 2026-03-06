@@ -13,7 +13,6 @@ import org.reco.reco_sys.module.exercise.repository.ExerciseKpRelRepository;
 import org.reco.reco_sys.module.exercise.repository.ExerciseRepository;
 import org.reco.reco_sys.module.exercise.service.ExerciseService;
 import org.reco.reco_sys.module.knowledge.neo4j.KnowledgePointNeo4jRepository;
-import org.reco.reco_sys.module.recommendation.client.PythonRecommendClient;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -31,7 +30,6 @@ public class ExerciseServiceImpl implements ExerciseService {
     private final ExerciseKpRelRepository kpRelRepository;
     private final ExerciseNeo4jRepository exerciseNeo4jRepository;
     private final KnowledgePointNeo4jRepository kpNeo4jRepository;
-    private final PythonRecommendClient pythonRecommendClient;
 
     @Override
     public Page<ExerciseDto> listByCourse(Long courseId, Pageable pageable) {
@@ -57,7 +55,6 @@ public class ExerciseServiceImpl implements ExerciseService {
 
         List<Long> kpIds = saveKpRelations(saved.getId(), request.getKnowledgePointIds());
         syncToNeo4j(saved, kpIds);
-        pythonRecommendClient.registerExercise(saved.getId(), kpIds);
 
         return toDto(saved);
     }

@@ -8,4 +8,6 @@ import java.util.List;
 public interface KnowledgePointRepository extends JpaRepository<KnowledgePoint, Long> {
     List<KnowledgePoint> findByCourseId(Long courseId);
     List<KnowledgePoint> findByCourseIdAndParentIdIsNull(Long courseId);
+    java.util.Optional<KnowledgePoint> findByPyKcIndex(Integer pyKcIndex);
+    boolean existsByPyKcIndexIsNotNull();
 }

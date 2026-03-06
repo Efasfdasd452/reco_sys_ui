@@ -13,11 +13,11 @@ export default function HomePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [courses, setCourses] = useState([])
-  const [history, setHistory] = useState([])
+  const [totalAnswered, setTotalAnswered] = useState(0)
 
   useEffect(() => {
     api.course.my().then(setCourses).catch(() => {})
-    api.learning.history(0, 5).then(d => setHistory(d?.content || [])).catch(() => {})
+    api.learning.history(0, 1).then(d => setTotalAnswered(d?.totalElements || 0)).catch(() => {})
   }, [])
 
   return (
@@ -31,7 +31,7 @@ export default function HomePage() {
         </Col>
         <Col span={8}>
           <Card>
-            <Statistic title="已完成答题" value={history.length} prefix={<CheckCircleOutlined />} />
+            <Statistic title="已完成答题" value={totalAnswered} prefix={<CheckCircleOutlined />} />
           </Card>
         </Col>
         <Col span={8}>

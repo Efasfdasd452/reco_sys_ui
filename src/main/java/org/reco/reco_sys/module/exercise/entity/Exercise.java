@@ -36,6 +36,10 @@ public class Exercise {
     @Column(name = "creator_id")
     private Long creatorId;
 
+    /** Python KG4Ex 模型中对应的习题索引（ex0~ex1083），null 表示教师自建题 */
+    @Column(name = "py_ex_index")
+    private Integer pyExIndex;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

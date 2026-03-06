@@ -16,7 +16,7 @@ export default function GradePage() {
   const [form] = Form.useForm()
 
   useEffect(() => {
-    api.course.list().then(setCourses)
+    api.course.my().then(setCourses)
   }, [])
 
   useEffect(() => {

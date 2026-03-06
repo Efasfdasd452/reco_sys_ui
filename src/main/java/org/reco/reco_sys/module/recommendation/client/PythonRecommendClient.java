@@ -5,14 +5,23 @@ import lombok.extern.slf4j.Slf4j;
 import org.reco.reco_sys.common.exception.BusinessException;
 import org.reco.reco_sys.common.result.ResultCode;
 import org.reco.reco_sys.config.AppProperties;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Python KG4Ex 推荐服务 HTTP 客户端。
+ *
+ * <p>接口格式（POST /api/v1/recommend）：
+ * <pre>
+ * 请求：{ uid, mlkc: {kc0: 0.5, ...}, pkc: {kc0: 0.3, ...}, exfr: {ex0: 0.1, ...}, top_n: 10 }
+ * 响应：{ uid, top_n, recommendations: [{exercise_id, exercise_name, score, knowledge_concepts}] }
+ * </pre>
+ */
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -20,55 +29,134 @@ public class PythonRecommendClient {
 
     private final AppProperties appProperties;
 
-    public RecommendResult recommend(Long userId, Long courseId, List<Map<String, Object>> kcStates) {
+    /**
+     * 调用推荐接口。
+     *
+     * @param uid    用户标识（仅用于日志）
+     * @param mlkc   知识点掌握度，key 形如 "kc0"，value 为 0~1
+     * @param pkc    知识点出现概率，key 形如 "kc0"，value 为 0~1
+     * @param exfr   习题遗忘率，key 形如 "ex0"，value 为 0~1（可为空）
+     * @param topN   推荐数量
+     * @return 推荐结果列表
+     */
+    public List<RecommendationItem> recommend(String uid,
+                                              Map<String, Double> mlkc,
+                                              Map<String, Double> pkc,
+                                              Map<String, Double> exfr,
+                                              int topN) {
         try {
-            RestClient client = RestClient.create();
-            Map<String, Object> body = Map.of(
-                    "user_id", userId,
-                    "course_id", courseId,
-                    "kc_states", kcStates
-            );
-            return client.post()
-                    .uri(appProperties.getRecommendServiceUrl() + "/api/v1/recommend")
-                    .header("X-API-Key", appProperties.getRecommendServiceApiKey())
+            Map<String, Object> body = new HashMap<>();
+            body.put("uid", uid);
+            body.put("mlkc", mlkc);
+            body.put("pkc", pkc);
+            body.put("exfr", exfr != null ? exfr : Map.of());
+            body.put("top_n", topN);
+
+            RecommendResponse response = buildClient()
+                    .post()
+                    .uri(apiUrl("/api/v1/recommend"))
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
-                    .body(RecommendResult.class);
+                    .body(RecommendResponse.class);
+
+            return response != null && response.recommendations() != null
+                    ? response.recommendations()
+                    : List.of();
         } catch (Exception e) {
             log.error("推荐服务调用失败: {}", e.getMessage());
             throw new BusinessException(ResultCode.RECOMMEND_SERVICE_ERROR);
         }
     }
 
-    public void registerExercise(Long exerciseId, List<Long> kpIds) {
+    /**
+     * 获取 Python 模型中所有知识点列表（用于数据初始化）。
+     */
+    @SuppressWarnings("unchecked")
+    public List<KcItem> listKnowledgeConcepts() {
         try {
-            RestClient client = RestClient.create();
-            Map<String, Object> body = Map.of(
-                    "exercise_id", exerciseId,
-                    "kp_ids", kpIds
-            );
-            client.post()
-                    .uri(appProperties.getRecommendServiceUrl() + "/api/v1/register-exercise")
-                    .header("X-API-Key", appProperties.getRecommendServiceApiKey())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
+            Map<?, ?> resp = buildClient()
+                    .get()
+                    .uri(apiUrl("/api/v1/knowledge-concepts"))
                     .retrieve()
-                    .toBodilessEntity();
+                    .body(Map.class);
+            if (resp == null) return List.of();
+            List<Map<String, Object>> raw = (List<Map<String, Object>>) resp.get("knowledge_concepts");
+            if (raw == null) return List.of();
+            return raw.stream()
+                    .map(m -> new KcItem(
+                            ((Number) m.get("kc_id")).intValue(),
+                            (String) m.get("kc_name")))
+                    .toList();
         } catch (Exception e) {
-            log.warn("注册习题到推荐服务失败 (exerciseId={}): {}", exerciseId, e.getMessage());
+            log.error("获取知识点列表失败: {}", e.getMessage());
+            throw new BusinessException(ResultCode.RECOMMEND_SERVICE_ERROR);
         }
     }
 
-    public record RecommendResult(
-            List<ExerciseRec> exercises,
-            String reason
+    /**
+     * 获取 Python 模型中所有习题列表（用于数据初始化）。
+     */
+    @SuppressWarnings("unchecked")
+    public List<ExItem> listExercises() {
+        try {
+            Map<?, ?> resp = buildClient()
+                    .get()
+                    .uri(apiUrl("/api/v1/exercises"))
+                    .retrieve()
+                    .body(Map.class);
+            if (resp == null) return List.of();
+            List<Map<String, Object>> raw = (List<Map<String, Object>>) resp.get("exercises");
+            if (raw == null) return List.of();
+            return raw.stream()
+                    .map(m -> new ExItem(
+                            ((Number) m.get("exercise_id")).intValue(),
+                            (String) m.get("exercise_name"),
+                            ((List<Number>) m.get("knowledge_concepts")).stream()
+                                    .map(Number::intValue).toList()))
+                    .toList();
+        } catch (Exception e) {
+            log.error("获取习题列表失败: {}", e.getMessage());
+            throw new BusinessException(ResultCode.RECOMMEND_SERVICE_ERROR);
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // 内部类型定义
+    // -------------------------------------------------------------------------
+
+    /** 推荐接口响应体 */
+    public record RecommendResponse(
+            String uid,
+            Integer top_n,
+            List<RecommendationItem> recommendations
     ) {}
 
-    public record ExerciseRec(
-            Long exercise_id,
+    /** 单条推荐结果 */
+    public record RecommendationItem(
+            Integer exercise_id,
+            String exercise_name,
             Double score,
-            String reason,
-            Integer rank
+            List<Integer> knowledge_concepts
     ) {}
+
+    /** 知识点元数据 */
+    public record KcItem(Integer kcId, String kcName) {}
+
+    /** 习题元数据 */
+    public record ExItem(Integer exId, String exName, List<Integer> kcIds) {}
+
+    // -------------------------------------------------------------------------
+    // 私有工具
+    // -------------------------------------------------------------------------
+
+    private RestClient buildClient() {
+        return RestClient.builder()
+                .defaultHeader("X-API-Key", appProperties.getRecommendServiceApiKey())
+                .build();
+    }
+
+    private String apiUrl(String path) {
+        return appProperties.getRecommendServiceUrl() + path;
+    }
 }

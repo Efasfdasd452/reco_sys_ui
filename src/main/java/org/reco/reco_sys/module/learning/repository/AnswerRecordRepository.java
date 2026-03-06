@@ -19,4 +19,7 @@ public interface AnswerRecordRepository extends JpaRepository<AnswerRecord, Long
     List<AnswerRecord> findPendingGradingByCourse(Long courseId);
 
     boolean existsByUserIdAndExerciseId(Long userId, Long exerciseId);
+
+    @Query("SELECT DISTINCT ar.exerciseId FROM AnswerRecord ar WHERE ar.userId = :userId")
+    List<Long> findDistinctExerciseIdsByUserId(Long userId);
 }

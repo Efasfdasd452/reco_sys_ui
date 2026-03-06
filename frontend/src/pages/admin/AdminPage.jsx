@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, Table, Button, Select, message, Popconfirm, Typography, Tabs } from 'antd'
-import { UserOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Card, Row, Col, Statistic, Table, Button, Select, message, Typography, Tabs, Alert } from 'antd'
+import { UserOutlined, CloudDownloadOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api'
 
@@ -8,6 +8,8 @@ export default function AdminPage() {
   const { t } = useTranslation()
   const [stats, setStats] = useState(null)
   const [users, setUsers] = useState([])
+  const [initLoading, setInitLoading] = useState(false)
+  const [initResult, setInitResult] = useState(null)
 
   useEffect(() => {
     api.admin.statistics().then(setStats).catch(() => {})
@@ -22,11 +24,23 @@ export default function AdminPage() {
     } catch {}
   }
 
-  const retrain = async () => {
+  const initPythonData = async () => {
+    setInitLoading(true)
+    setInitResult(null)
     try {
-      await api.admin.retrain()
-      message.success('重训练任务已触发')
-    } catch {}
+      const result = await api.admin.initPythonData()
+      setInitResult(result)
+      if (result.status === 'success') {
+        message.success(`导入完成：${result.kcs} 个知识点，${result.exercises} 道习题`)
+        api.admin.statistics().then(setStats)
+      } else {
+        message.info(result.message || '已初始化，无需重复操作')
+      }
+    } catch {
+      message.error('初始化失败，请检查Python推荐服务是否运行')
+    } finally {
+      setInitLoading(false)
+    }
   }
 
   const columns = [
@@ -77,9 +91,33 @@ export default function AdminPage() {
                   </Col>
                 ))}
               </Row>
-              <Button icon={<ReloadOutlined />} onClick={retrain} type="primary" danger>
-                触发推荐模型重训练
-              </Button>
+
+              <Card title="KG4Ex 数据初始化" style={{ marginTop: 16 }}>
+                <p style={{ color: '#666', marginBottom: 12 }}>
+                  从 Python 推荐服务导入 Algebra 2005 数据集（112个知识点 + 1084道习题），
+                  导入后推荐系统才能正常工作。幂等操作，重复点击安全。
+                </p>
+                <Button
+                  icon={<CloudDownloadOutlined />}
+                  type="primary"
+                  loading={initLoading}
+                  onClick={initPythonData}
+                >
+                  导入推荐数据（KG4Ex）
+                </Button>
+                {initResult && (
+                  <Alert
+                    style={{ marginTop: 12 }}
+                    type={initResult.status === 'success' ? 'success' : 'info'}
+                    message={
+                      initResult.status === 'success'
+                        ? `导入成功：${initResult.kcs} 个知识点，${initResult.exercises} 道习题，课程ID=${initResult.courseId}`
+                        : initResult.message
+                    }
+                    showIcon
+                  />
+                )}
+              </Card>
             </>
           ),
         },

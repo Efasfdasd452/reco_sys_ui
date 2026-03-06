@@ -10,6 +10,7 @@ import org.reco.reco_sys.module.course.entity.UserCourse;
 import org.reco.reco_sys.module.course.repository.CourseRepository;
 import org.reco.reco_sys.module.course.repository.UserCourseRepository;
 import org.reco.reco_sys.module.course.service.CourseService;
+import org.reco.reco_sys.module.user.entity.SysUser;
 import org.reco.reco_sys.module.user.repository.SysUserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -71,6 +72,12 @@ public class CourseServiceImpl implements CourseService {
 
     @Override
     public List<CourseDto> myEnrolledCourses(Long userId) {
+        SysUser user = userRepository.findById(userId).orElse(null);
+        if (user != null && (user.getRole() == SysUser.Role.TEACHER || user.getRole() == SysUser.Role.ADMIN)) {
+            return courseRepository.findByTeacherId(userId).stream()
+                    .map(c -> toDto(c, userId))
+                    .collect(Collectors.toList());
+        }
         return userCourseRepository.findByUserId(userId).stream()
                 .map(uc -> courseRepository.findById(uc.getCourseId()).orElse(null))
                 .filter(c -> c != null)

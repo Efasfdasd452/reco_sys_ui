@@ -4,9 +4,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.reco.reco_sys.common.result.Result;
 import org.reco.reco_sys.common.util.JwtUtil;
+import org.reco.reco_sys.module.user.dto.LoginRecordDto;
 import org.reco.reco_sys.module.user.dto.UpdateProfileRequest;
 import org.reco.reco_sys.module.user.dto.UserProfileDto;
 import org.reco.reco_sys.module.user.service.UserService;
+import org.springframework.data.domain.Page;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -29,6 +31,15 @@ public class UserController {
         Long userId = jwtUtil.getUserId(extractToken(token));
         userService.updateProfile(userId, request);
         return Result.success(null);
+    }
+
+    @GetMapping("/login-records")
+    public Result<Page<LoginRecordDto>> loginRecords(
+            @RequestHeader("Authorization") String token,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        Long userId = jwtUtil.getUserId(extractToken(token));
+        return Result.success(userService.getLoginRecords(userId, page, size));
     }
 
     private String extractToken(String bearer) {

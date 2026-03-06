@@ -7,7 +7,10 @@ import java.time.LocalDateTime;
 @Data
 public class AnswerRecordDto {
     private Long id;
+    private Long userId;
     private Long exerciseId;
+    private String exerciseType;
+    private String exerciseDifficulty;
     private String answer;
     private String status;
     private Integer score;

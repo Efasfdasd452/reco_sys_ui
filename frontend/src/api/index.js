@@ -12,6 +12,8 @@ export const api = {
   user: {
     profile: () => request.get('/user/profile'),
     updateProfile: (data) => request.put('/user/profile', data),
+    loginRecords: (page = 0, size = 10) =>
+      request.get('/user/login-records', { params: { page, size } }),
   },
 
   course: {
@@ -46,6 +48,7 @@ export const api = {
     submit: (data) => request.post('/learning/submit', data),
     history: (page = 0, size = 20) =>
       request.get('/learning/history', { params: { page, size } }),
+    answeredIds: () => request.get('/learning/answered-ids'),
   },
 
   grade: {
@@ -80,7 +83,7 @@ export const api = {
     users: () => request.get('/admin/users'),
     setRole: (userId, role) =>
       request.put(`/admin/users/${userId}/role`, null, { params: { role } }),
-    retrain: () => request.post('/admin/retrain'),
+    initPythonData: () => request.post('/admin/init-python-data'),
     statistics: () => request.get('/admin/statistics'),
   },
 }

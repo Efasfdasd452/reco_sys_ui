@@ -6,6 +6,7 @@ import org.reco.reco_sys.common.result.ResultCode;
 import org.reco.reco_sys.module.grade.dto.GradeRequest;
 import org.reco.reco_sys.module.grade.service.GradeService;
 import org.reco.reco_sys.module.learning.dto.AnswerRecordDto;
+import org.reco.reco_sys.module.exercise.repository.ExerciseRepository;
 import org.reco.reco_sys.module.learning.entity.AnswerRecord;
 import org.reco.reco_sys.module.learning.repository.AnswerRecordRepository;
 import org.reco.reco_sys.module.notification.entity.Notification;
@@ -23,6 +24,7 @@ public class GradeServiceImpl implements GradeService {
 
     private final AnswerRecordRepository answerRecordRepository;
     private final NotificationService notificationService;
+    private final ExerciseRepository exerciseRepository;
 
     @Override
     public List<AnswerRecordDto> listPendingByCourse(Long courseId) {
@@ -59,6 +61,7 @@ public class GradeServiceImpl implements GradeService {
     private AnswerRecordDto toDto(AnswerRecord record) {
         AnswerRecordDto dto = new AnswerRecordDto();
         dto.setId(record.getId());
+        dto.setUserId(record.getUserId());
         dto.setExerciseId(record.getExerciseId());
         dto.setAnswer(record.getAnswer());
         dto.setStatus(record.getStatus().name());
@@ -66,6 +69,10 @@ public class GradeServiceImpl implements GradeService {
         dto.setTeacherComment(record.getTeacherComment());
         dto.setSubmittedAt(record.getSubmittedAt());
         dto.setGradedAt(record.getGradedAt());
+        exerciseRepository.findById(record.getExerciseId()).ifPresent(ex -> {
+            dto.setExerciseType(ex.getType().name());
+            dto.setExerciseDifficulty(ex.getDifficulty().name());
+        });
         return dto;
     }
 }

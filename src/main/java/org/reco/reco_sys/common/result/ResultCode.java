@@ -1,8 +1,5 @@
 package org.reco.reco_sys.common.result;
 
-import lombok.Getter;
-
-@Getter
 public enum ResultCode {
 
     SUCCESS(200, "操作成功"),
@@ -47,4 +44,7 @@ public enum ResultCode {
         this.code = code;
         this.message = message;
     }
+
+    public int getCode() { return code; }
+    public String getMessage() { return message; }
 }

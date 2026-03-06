@@ -4,7 +4,8 @@ import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   BookOutlined, BulbOutlined, StarOutlined, NodeIndexOutlined,
   BellOutlined, UserOutlined, LogoutOutlined, BarChartOutlined,
-  EditOutlined, HomeOutlined,
+  EditOutlined, HomeOutlined, FormOutlined, ApartmentOutlined,
+  HistoryOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../store/authStore'
@@ -33,10 +34,14 @@ export default function AppLayout() {
   const menuItems = [
     { key: '/', icon: <HomeOutlined />, label: t('nav.home') },
     { key: '/courses', icon: <BookOutlined />, label: t('nav.courses') },
+    { key: '/exercises', icon: <FormOutlined />, label: t('nav.exercises') },
     { key: '/recommend', icon: <StarOutlined />, label: t('nav.recommend') },
     { key: '/knowledge', icon: <NodeIndexOutlined />, label: t('nav.knowledge') },
+    { key: '/history', icon: <HistoryOutlined />, label: '答题历史' },
     ...(isTeacher ? [
       { key: '/grade', icon: <EditOutlined />, label: t('nav.grade') },
+      { key: '/exercises-manage', icon: <FormOutlined />, label: '习题管理' },
+      { key: '/knowledge-manage', icon: <ApartmentOutlined />, label: '知识点管理' },
     ] : []),
     ...(isAdmin ? [
       { key: '/admin', icon: <BarChartOutlined />, label: t('nav.admin') },

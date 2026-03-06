@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'react'
-import { Card, Row, Col, Button, Tag, Tabs, Typography, message, Spin } from 'antd'
+import { Card, Row, Col, Button, Tag, Typography, Modal, Form, Input, message, Spin } from 'antd'
 import { PlusOutlined, CheckOutlined } from '@ant-design/icons'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api'
+import { useAuth } from '../../store/authStore'
 
 export default function CoursePage() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const { user } = useAuth()
+  const isTeacher = user?.role === 'TEACHER' || user?.role === 'ADMIN'
   const [all, setAll] = useState([])
   const [loading, setLoading] = useState(true)
+  const [createOpen, setCreateOpen] = useState(false)
+  const [form] = Form.useForm()
 
   const load = () => {
     setLoading(true)
@@ -18,15 +21,25 @@ export default function CoursePage() {
 
   useEffect(() => { load() }, [])
 
-  const handleEnroll = async (course) => {
+  const handleEnroll = async (e, course) => {
+    e.stopPropagation()
     try {
       if (course.isEnrolled) {
         await api.course.unenroll(course.id)
-        message.success(t('common.success'))
       } else {
         await api.course.enroll(course.id)
-        message.success(t('common.success'))
       }
+      message.success(t('common.success'))
+      load()
+    } catch {}
+  }
+
+  const handleCreate = async (values) => {
+    try {
+      await api.course.create(values)
+      message.success(t('common.success'))
+      setCreateOpen(false)
+      form.resetFields()
       load()
     } catch {}
   }
@@ -35,24 +48,31 @@ export default function CoursePage() {
 
   return (
     <div>
-      <Typography.Title level={4}>{t('nav.courses')}</Typography.Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Typography.Title level={4} style={{ margin: 0 }}>{t('nav.courses')}</Typography.Title>
+        {isTeacher && (
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+            新建课程
+          </Button>
+        )}
+      </div>
       <Row gutter={[16, 16]}>
         {all.map(course => (
           <Col key={course.id} xs={24} sm={12} lg={8}>
             <Card
               title={course.name}
               extra={
-                <Button
-                  type={course.isEnrolled ? 'default' : 'primary'}
-                  size="small"
-                  icon={course.isEnrolled ? <CheckOutlined /> : <PlusOutlined />}
-                  onClick={() => handleEnroll(course)}
-                >
-                  {course.isEnrolled ? t('course.enrolled') : t('course.enroll')}
-                </Button>
+                !isTeacher && (
+                  <Button
+                    type={course.isEnrolled ? 'default' : 'primary'}
+                    size="small"
+                    icon={course.isEnrolled ? <CheckOutlined /> : <PlusOutlined />}
+                    onClick={(e) => handleEnroll(e, course)}
+                  >
+                    {course.isEnrolled ? t('course.enrolled') : t('course.enroll')}
+                  </Button>
+                )
               }
-              hoverable
-              onClick={() => navigate(`/courses/${course.id}`)}
             >
               <p style={{ color: '#666', fontSize: 13, minHeight: 40 }}>{course.description || '暂无描述'}</p>
               <div style={{ marginTop: 8 }}>
@@ -62,6 +82,25 @@ export default function CoursePage() {
           </Col>
         ))}
       </Row>
+
+      <Modal
+        open={createOpen}
+        title="新建课程"
+        onCancel={() => { setCreateOpen(false); form.resetFields() }}
+        footer={null}
+      >
+        <Form form={form} onFinish={handleCreate} layout="vertical">
+          <Form.Item label="课程名称" name="name" rules={[{ required: true, message: '请输入课程名称' }]}>
+            <Input placeholder="请输入课程名称" />
+          </Form.Item>
+          <Form.Item label="课程描述" name="description">
+            <Input.TextArea rows={3} placeholder="请输入课程描述" />
+          </Form.Item>
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block>创建</Button>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   )
 }

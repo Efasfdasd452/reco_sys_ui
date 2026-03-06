@@ -63,6 +63,11 @@ public class LearningServiceImpl implements LearningService {
         return answerRecordRepository.findByUserIdOrderBySubmittedAtDesc(userId, pageable).map(this::toDto);
     }
 
+    @Override
+    public List<Long> getAnsweredExerciseIds(Long userId) {
+        return answerRecordRepository.findDistinctExerciseIdsByUserId(userId);
+    }
+
     private void updateMastery(Long userId, Long exerciseId, double delta) {
         List<ExerciseKpRel> rels = kpRelRepository.findByExerciseId(exerciseId);
         for (ExerciseKpRel rel : rels) {
@@ -82,6 +87,7 @@ public class LearningServiceImpl implements LearningService {
     private AnswerRecordDto toDto(AnswerRecord record) {
         AnswerRecordDto dto = new AnswerRecordDto();
         dto.setId(record.getId());
+        dto.setUserId(record.getUserId());
         dto.setExerciseId(record.getExerciseId());
         dto.setAnswer(record.getAnswer());
         dto.setStatus(record.getStatus().name());
@@ -89,6 +95,10 @@ public class LearningServiceImpl implements LearningService {
         dto.setTeacherComment(record.getTeacherComment());
         dto.setSubmittedAt(record.getSubmittedAt());
         dto.setGradedAt(record.getGradedAt());
+        exerciseRepository.findById(record.getExerciseId()).ifPresent(ex -> {
+            dto.setExerciseType(ex.getType().name());
+            dto.setExerciseDifficulty(ex.getDifficulty().name());
+        });
         return dto;
     }
 }
