@@ -1,11 +1,12 @@
 package org.reco.reco_sys.module.recommendation.client;
 
-import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.reco.reco_sys.common.exception.BusinessException;
 import org.reco.reco_sys.common.result.ResultCode;
 import org.reco.reco_sys.config.AppProperties;
 import org.springframework.http.MediaType;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -26,10 +27,23 @@ import java.util.Map;
  */
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class PythonRecommendClient {
 
     private final AppProperties appProperties;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final RestClient restClient;
+
+    public PythonRecommendClient(AppProperties appProperties) {
+        this.appProperties = appProperties;
+        // 【修改点】手动指定使用 SimpleClientHttpRequestFactory (强制 HTTP/1.1)
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000); // 建议加上超时时间
+        factory.setReadTimeout(10000);   // 建议加上超时时间
+        this.restClient = RestClient.builder()
+                .requestFactory(factory)
+                .defaultHeader("X-API-Key", appProperties.getRecommendServiceApiKey())
+                .build();
+    }
 
     /**
      * 调用推荐接口。
@@ -54,14 +68,17 @@ public class PythonRecommendClient {
             body.setExfr(exfr != null ? exfr : Map.of());
             body.setTopN(topN);
 
-            RecommendResponse response = buildClient()
+            String jsonBody = objectMapper.writeValueAsString(body);
+            String jsonResp = restClient
                     .post()
                     .uri(apiUrl("/api/v1/recommend"))
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(body)
+                    .body(jsonBody)
                     .retrieve()
-                    .body(RecommendResponse.class);
+                    .body(String.class);
 
+            RecommendResponse response = jsonResp != null
+                    ? objectMapper.readValue(jsonResp, RecommendResponse.class) : null;
             return response != null && response.getRecommendations() != null
                     ? response.getRecommendations()
                     : List.of();
@@ -77,12 +94,13 @@ public class PythonRecommendClient {
     @SuppressWarnings("unchecked")
     public List<KcItem> listKnowledgeConcepts() {
         try {
-            Map<?, ?> resp = buildClient()
+            String json = restClient
                     .get()
                     .uri(apiUrl("/api/v1/knowledge-concepts"))
                     .retrieve()
-                    .body(Map.class);
-            if (resp == null) return List.of();
+                    .body(String.class);
+            if (json == null) return List.of();
+            Map<String, Object> resp = objectMapper.readValue(json, Map.class);
             List<Map<String, Object>> raw = (List<Map<String, Object>>) resp.get("knowledge_concepts");
             if (raw == null) return List.of();
             return raw.stream()
@@ -102,12 +120,13 @@ public class PythonRecommendClient {
     @SuppressWarnings("unchecked")
     public List<ExItem> listExercises() {
         try {
-            Map<?, ?> resp = buildClient()
+            String json = restClient
                     .get()
                     .uri(apiUrl("/api/v1/exercises"))
                     .retrieve()
-                    .body(Map.class);
-            if (resp == null) return List.of();
+                    .body(String.class);
+            if (json == null) return List.of();
+            Map<String, Object> resp = objectMapper.readValue(json, Map.class);
             List<Map<String, Object>> raw = (List<Map<String, Object>>) resp.get("exercises");
             if (raw == null) return List.of();
             return raw.stream()
@@ -168,12 +187,6 @@ public class PythonRecommendClient {
     // -------------------------------------------------------------------------
     // 私有工具
     // -------------------------------------------------------------------------
-
-    private RestClient buildClient() {
-        return RestClient.builder()
-                .defaultHeader("X-API-Key", appProperties.getRecommendServiceApiKey())
-                .build();
-    }
 
     private String apiUrl(String path) {
         return appProperties.getRecommendServiceUrl() + path;
