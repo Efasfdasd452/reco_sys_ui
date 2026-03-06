@@ -12,7 +12,6 @@ import org.springframework.web.client.RestClient;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -48,12 +47,12 @@ public class PythonRecommendClient {
                                               Map<String, Double> exfr,
                                               int topN) {
         try {
-            Map<String, Object> body = new HashMap<>();
-            body.put("uid", uid);
-            body.put("mlkc", mlkc);
-            body.put("pkc", pkc);
-            body.put("exfr", exfr != null ? exfr : Map.of());
-            body.put("top_n", topN);
+            RecommendRequestBody body = new RecommendRequestBody();
+            body.setUid(uid);
+            body.setMlkc(mlkc != null ? mlkc : Map.of());
+            body.setPkc(pkc != null ? pkc : Map.of());
+            body.setExfr(exfr != null ? exfr : Map.of());
+            body.setTopN(topN);
 
             RecommendResponse response = buildClient()
                     .post()
@@ -127,6 +126,17 @@ public class PythonRecommendClient {
     // -------------------------------------------------------------------------
     // 内部类型定义
     // -------------------------------------------------------------------------
+
+    /** 推荐接口请求体 */
+    @Data
+    public static class RecommendRequestBody {
+        private String uid;
+        private Map<String, Double> mlkc;
+        private Map<String, Double> pkc;
+        private Map<String, Double> exfr;
+        @JsonProperty("top_n")
+        private int topN;
+    }
 
     /** 推荐接口响应体 */
     @Data
