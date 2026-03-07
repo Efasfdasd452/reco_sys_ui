@@ -12,5 +12,6 @@ public class CourseDto {
     private Long teacherId;
     private String teacherName;
     private Boolean isEnrolled;
+    private String inviteCode;
     private LocalDateTime createdAt;
 }

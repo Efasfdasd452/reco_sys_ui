@@ -7,6 +7,9 @@ export const api = {
     register: (data) => request.post('/auth/register', data),
     login: (data) => request.post('/auth/login', data),
     resetPassword: (data) => request.post('/auth/reset-password', data),
+    captchaGenerate: () => request.get('/auth/captcha/generate'),
+    captchaVerify: (token, sliderX) =>
+      request.post('/auth/captcha/verify', null, { params: { token, sliderX } }),
   },
 
   user: {
@@ -23,6 +26,8 @@ export const api = {
     create: (data) => request.post('/courses', data),
     enroll: (id) => request.post(`/courses/${id}/enroll`),
     unenroll: (id) => request.delete(`/courses/${id}/enroll`),
+    joinByCode: (inviteCode) => request.post('/courses/join', null, { params: { inviteCode } }),
+    students: (id) => request.get(`/courses/${id}/students`),
   },
 
   knowledge: {
@@ -59,6 +64,10 @@ export const api = {
   recommend: {
     latest: (courseId) => request.get(`/recommend/course/${courseId}`),
     refresh: (courseId) => request.post(`/recommend/course/${courseId}/refresh`),
+    latestForStudent: (courseId, studentId) =>
+      request.get(`/recommend/teacher/course/${courseId}/student/${studentId}`),
+    refreshForStudent: (courseId, studentId) =>
+      request.post(`/recommend/teacher/course/${courseId}/student/${studentId}/refresh`),
   },
 
   notification: {
@@ -79,11 +88,29 @@ export const api = {
     getMobileSession: () => request.get('/files/mobile-session'),
   },
 
+  classroom: {
+    create: (data) => request.post('/classrooms', data),
+    my: () => request.get('/classrooms/my'),
+    all: () => request.get('/classrooms/all'),
+    joined: () => request.get('/classrooms/joined'),
+    detail: (id) => request.get(`/classrooms/${id}`),
+    join: (inviteCode) => request.post('/classrooms/join', null, { params: { inviteCode } }),
+    leave: (id) => request.delete(`/classrooms/${id}/leave`),
+    dissolve: (id) => request.delete(`/classrooms/${id}`),
+    removeStudent: (id, studentId) => request.delete(`/classrooms/${id}/students/${studentId}`),
+    addCourse: (id, courseId) => request.post(`/classrooms/${id}/courses`, { courseId }),
+    removeCourse: (id, courseId) => request.delete(`/classrooms/${id}/courses/${courseId}`),
+    enrollStudents: (id, courseId, studentIds) =>
+      request.post(`/classrooms/${id}/courses/${courseId}/enroll`, { studentIds: studentIds || [] }),
+    unenrollStudents: (id, courseId, studentIds) =>
+      request.delete(`/classrooms/${id}/courses/${courseId}/enroll`, { data: { studentIds: studentIds || [] } }),
+  },
+
   admin: {
     users: () => request.get('/admin/users'),
     setRole: (userId, role) =>
       request.put(`/admin/users/${userId}/role`, null, { params: { role } }),
-    initPythonData: () => request.post('/admin/init-python-data'),
+    initDataset: (courseId) => request.post('/admin/init-dataset', null, { params: { courseId } }),
     statistics: () => request.get('/admin/statistics'),
   },
 }

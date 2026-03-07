@@ -103,7 +103,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                     List<RecExerciseItem> items = recItemRepository.findByRecIdOrderByRankOrder(rec.getId());
                     return buildResponse(rec, items);
                 })
-                .orElseGet(() -> recommend(userId, courseId));
+                .orElse(null);
     }
 
     // -------------------------------------------------------------------------

@@ -6,6 +6,7 @@ public enum ResultCode {
     CREATED(201, "创建成功"),
 
     BAD_REQUEST(400, "请求参数错误"),
+    PARAM_ERROR(400, "参数校验失败"),
     UNAUTHORIZED(401, "未登录或Token已过期"),
     FORBIDDEN(403, "无权限访问"),
     NOT_FOUND(404, "资源不存在"),

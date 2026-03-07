@@ -20,8 +20,10 @@ public class GradeController {
     private final JwtUtil jwtUtil;
 
     @GetMapping("/pending/course/{courseId}")
-    public Result<List<AnswerRecordDto>> listPending(@PathVariable Long courseId) {
-        return Result.success(gradeService.listPendingByCourse(courseId));
+    public Result<List<AnswerRecordDto>> listPending(@PathVariable Long courseId,
+                                                      @RequestHeader("Authorization") String token) {
+        Long teacherId = jwtUtil.getUserId(extractToken(token));
+        return Result.success(gradeService.listPendingByCourse(courseId, teacherId));
     }
 
     @PostMapping("/{recordId}")

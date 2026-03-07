@@ -18,7 +18,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -63,6 +62,7 @@ public class ExerciseServiceImpl implements ExerciseService {
     @Transactional
     public ExerciseDto update(Long id, ExerciseCreateRequest request) {
         Exercise ex = getExercise(id);
+        ex.setType(Exercise.Type.valueOf(request.getType()));
         ex.setContent(request.getContent());
         ex.setAnswerKey(request.getAnswerKey());
         ex.setDifficulty(Exercise.Difficulty.valueOf(request.getDifficulty()));
@@ -121,6 +121,7 @@ public class ExerciseServiceImpl implements ExerciseService {
         dto.setType(ex.getType().name());
         dto.setContent(ex.getContent());
         dto.setDifficulty(ex.getDifficulty().name());
+        dto.setAnswerKey(ex.getAnswerKey());
         dto.setKnowledgePointIds(kpRelRepository.findByExerciseId(ex.getId()).stream()
                 .map(ExerciseKpRel::getKpId).collect(Collectors.toList()));
         return dto;

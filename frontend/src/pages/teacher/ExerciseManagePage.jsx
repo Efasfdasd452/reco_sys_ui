@@ -59,7 +59,7 @@ export default function ExerciseManagePage() {
   const openEdit = (ex) => {
     setEditing(ex)
     setContent(ex.content || '')
-    setAnswerKey('')
+    setAnswerKey(ex.answerKey || '')
     form.setFieldsValue({
       courseId: ex.courseId,
       type: ex.type,

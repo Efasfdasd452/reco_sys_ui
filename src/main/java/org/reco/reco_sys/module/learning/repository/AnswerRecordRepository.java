@@ -14,7 +14,7 @@ public interface AnswerRecordRepository extends JpaRepository<AnswerRecord, Long
 
     @Query(value = "SELECT ar.* FROM answer_record ar " +
            "JOIN exercise e ON ar.exercise_id = e.id " +
-           "WHERE e.course_id = :courseId AND ar.status = 'SUBMITTED' ORDER BY ar.submitted_at",
+           "WHERE e.course_id = :courseId AND ar.status IN ('SUBMITTED','GRADING') ORDER BY ar.submitted_at",
            nativeQuery = true)
     List<AnswerRecord> findPendingGradingByCourse(Long courseId);
 

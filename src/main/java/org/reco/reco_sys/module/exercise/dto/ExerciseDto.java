@@ -11,5 +11,6 @@ public class ExerciseDto {
     private String type;
     private String content;
     private String difficulty;
+    private String answerKey;
     private List<Long> knowledgePointIds;
 }

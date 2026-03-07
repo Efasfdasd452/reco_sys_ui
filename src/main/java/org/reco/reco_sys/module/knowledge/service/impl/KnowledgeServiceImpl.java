@@ -1,6 +1,7 @@
 package org.reco.reco_sys.module.knowledge.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.reco.reco_sys.common.exception.BusinessException;
 import org.reco.reco_sys.common.result.ResultCode;
 import org.reco.reco_sys.module.knowledge.dto.GraphDto;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class KnowledgeServiceImpl implements KnowledgeService {
@@ -119,6 +121,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         }).collect(Collectors.toList());
 
         List<GraphDto.GraphEdge> edges = new ArrayList<>();
+        // MySQL 父子边
         for (KnowledgePoint kp : kps) {
             if (kp.getParentId() != null) {
                 GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
@@ -127,6 +130,38 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 edge.setLabel("包含");
                 edges.add(edge);
             }
+        }
+        // Neo4j 关系边（PREREQUISITE_OF / RELATED_TO）
+        // 一次性批量查询，避免 N+1；Neo4j 为空时安全跳过
+        try {
+            List<KnowledgePointNode> neo4jNodes =
+                    kpNeo4jRepository.findAllByCourseId(String.valueOf(courseId));
+            for (KnowledgePointNode node : neo4jNodes) {
+                if (node.getMysqlId() == null) continue;
+                if (node.getPrerequisites() != null) {
+                    for (KnowledgePointNode pre : node.getPrerequisites()) {
+                        if (pre.getMysqlId() == null) continue;
+                        GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
+                        edge.setSource("kp_" + node.getMysqlId());
+                        edge.setTarget("kp_" + pre.getMysqlId());
+                        edge.setLabel("先修");
+                        edges.add(edge);
+                    }
+                }
+                if (node.getRelatedPoints() != null) {
+                    for (KnowledgePointNode rel : node.getRelatedPoints()) {
+                        if (rel.getMysqlId() == null) continue;
+                        GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
+                        edge.setSource("kp_" + node.getMysqlId());
+                        edge.setTarget("kp_" + rel.getMysqlId());
+                        edge.setLabel("相关");
+                        edges.add(edge);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // Neo4j 不可用或库为空时，仅记录 warn，图谱降级为纯 MySQL 边
+            log.warn("Neo4j 查询关系边失败，图谱将只展示父子结构：{}", e.getMessage());
         }
         graph.setNodes(nodes);
         graph.setEdges(edges);

@@ -34,7 +34,6 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/",
                     "/api/auth/**",
-                    "/api/files/**",
                     "/mobile-upload/**",
                     "/ws/**",
                     "/swagger-ui/**",
@@ -42,9 +41,13 @@ public class SecurityConfig {
                     "/v3/api-docs/**",
                     "/actuator/health"
                 ).permitAll()
+                // 班级接口（登录后可访问，细粒度权限由 @PreAuthorize 控制）
+                .requestMatchers("/api/classrooms/**").authenticated()
                 // 管理员专属
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // 教师及以上
+                // 知识图谱查看 - 已登录用户均可访问（学生看自己，教师看学生）
+                .requestMatchers("/api/knowledge/graph/**").authenticated()
+                // 教师及以上（知识点/关系的增删改）
                 .requestMatchers("/api/grade/**", "/api/knowledge/**").hasAnyRole("TEACHER", "ADMIN")
                 // 其余接口需要登录
                 .anyRequest().authenticated()

@@ -10,4 +10,5 @@ public interface ExerciseRepository extends JpaRepository<Exercise, Long> {
     long countByCourseId(Long courseId);
     java.util.Optional<Exercise> findByPyExIndex(Integer pyExIndex);
     boolean existsByPyExIndexIsNotNull();
+    boolean existsByPyExIndexAndCourseId(Integer pyExIndex, Long courseId);
 }

@@ -25,4 +25,8 @@ public class RegisterRequest {
     private String emailCode;
 
     private String nickname;
+
+    /** 滑块验证码通行证 */
+    @NotBlank(message = "请先完成滑块验证")
+    private String captchaPassToken;
 }

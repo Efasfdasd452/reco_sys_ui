@@ -1,13 +1,17 @@
 package org.reco.reco_sys.module.admin.controller;
 
 import lombok.RequiredArgsConstructor;
+import org.reco.reco_sys.common.exception.BusinessException;
 import org.reco.reco_sys.common.result.Result;
+import org.reco.reco_sys.common.result.ResultCode;
 import org.reco.reco_sys.common.util.JwtUtil;
 import org.reco.reco_sys.module.admin.service.AdminService;
+import org.reco.reco_sys.module.admin.service.DataInitService;
 import org.reco.reco_sys.module.user.dto.UserProfileDto;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -18,6 +22,7 @@ import java.util.Map;
 public class AdminController {
 
     private final AdminService adminService;
+    private final DataInitService dataInitService;
     private final JwtUtil jwtUtil;
 
     @GetMapping("/users")
@@ -32,14 +37,20 @@ public class AdminController {
     }
 
     /**
-     * 从 Python 推荐服务初始化 KG4Ex 数据（112知识点 + 1084习题）。
-     * 幂等：重复调用安全，已初始化时直接返回。
+     * 将 algebra2005 Q矩阵导入指定课程（112知识点 + 1084习题）。
+     * 幂等：已存在的数据会跳过。
+     * @param courseId 目标课程 ID
      */
-    @PostMapping("/init-python-data")
-    public Result<Map<String, Object>> initPythonData(
+    @PostMapping("/init-dataset")
+    public Result<Map<String, Object>> initDataset(
+            @RequestParam Long courseId,
             @RequestHeader("Authorization") String token) {
         Long adminUserId = jwtUtil.getUserId(extractToken(token));
-        return Result.success(adminService.initPythonData(adminUserId));
+        try {
+            return Result.success(dataInitService.importAlgebra2005(courseId, adminUserId));
+        } catch (IOException e) {
+            throw new BusinessException(ResultCode.INTERNAL_ERROR, "读取数据集失败：" + e.getMessage());
+        }
     }
 
     private String extractToken(String bearer) {

@@ -5,7 +5,7 @@ import {
   BookOutlined, BulbOutlined, StarOutlined, NodeIndexOutlined,
   BellOutlined, UserOutlined, LogoutOutlined, BarChartOutlined,
   EditOutlined, HomeOutlined, FormOutlined, ApartmentOutlined,
-  HistoryOutlined,
+  HistoryOutlined, TeamOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../store/authStore'
@@ -35,10 +35,15 @@ export default function AppLayout() {
     { key: '/', icon: <HomeOutlined />, label: t('nav.home') },
     { key: '/courses', icon: <BookOutlined />, label: t('nav.courses') },
     { key: '/exercises', icon: <FormOutlined />, label: t('nav.exercises') },
-    { key: '/recommend', icon: <StarOutlined />, label: t('nav.recommend') },
     { key: '/knowledge', icon: <NodeIndexOutlined />, label: t('nav.knowledge') },
-    { key: '/history', icon: <HistoryOutlined />, label: '答题历史' },
+    ...(!isTeacher ? [
+      { key: '/recommend', icon: <StarOutlined />, label: t('nav.recommend') },
+      { key: '/history', icon: <HistoryOutlined />, label: '答题历史' },
+      { key: '/my-classrooms', icon: <TeamOutlined />, label: '我的班级' },
+    ] : []),
     ...(isTeacher ? [
+      { key: '/teacher-recommend', icon: <StarOutlined />, label: '学生推荐' },
+      { key: '/classrooms', icon: <TeamOutlined />, label: '班级管理' },
       { key: '/grade', icon: <EditOutlined />, label: t('nav.grade') },
       { key: '/exercises-manage', icon: <FormOutlined />, label: '习题管理' },
       { key: '/knowledge-manage', icon: <ApartmentOutlined />, label: '知识点管理' },

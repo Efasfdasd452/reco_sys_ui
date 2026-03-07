@@ -6,6 +6,7 @@ import org.reco.reco_sys.common.result.Result;
 import org.reco.reco_sys.common.util.JwtUtil;
 import org.reco.reco_sys.module.course.dto.CourseCreateRequest;
 import org.reco.reco_sys.module.course.dto.CourseDto;
+import org.reco.reco_sys.module.course.dto.CourseStudentDto;
 import org.reco.reco_sys.module.course.service.CourseService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -61,6 +62,22 @@ public class CourseController {
     public Result<List<CourseDto>> myCourses(@RequestHeader("Authorization") String token) {
         Long userId = jwtUtil.getUserId(extractToken(token));
         return Result.success(courseService.myEnrolledCourses(userId));
+    }
+
+    /** 教师/管理员：获取课程已选学生列表 */
+    @GetMapping("/{id}/students")
+    @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
+    public Result<List<CourseStudentDto>> enrolledStudents(@PathVariable Long id) {
+        return Result.success(courseService.listEnrolledStudents(id));
+    }
+
+    /** 学生通过课程邀请码加入课程 */
+    @PostMapping("/join")
+    public Result<Void> joinByInviteCode(@RequestParam String inviteCode,
+                                         @RequestHeader("Authorization") String token) {
+        Long userId = jwtUtil.getUserId(extractToken(token));
+        courseService.joinByInviteCode(inviteCode, userId);
+        return Result.success(null);
     }
 
     private String extractToken(String bearer) {

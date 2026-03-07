@@ -25,3 +25,6 @@ jwt.expiration=86400000
 # ===== Python 推荐服务（FastAPI + Uvicorn）=====
 recommend.service.url=http://localhost:8000
 recommend.service.api-key=YOUR_FASTAPI_API_KEY
+
+# ===== algebra2005 数据集路径 =====
+recommend.data.path=C:/Users/ASUS/important_files/py_local/recommend_system/data/algebra2005

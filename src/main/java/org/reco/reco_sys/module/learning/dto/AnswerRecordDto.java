@@ -8,7 +8,10 @@ import java.time.LocalDateTime;
 public class AnswerRecordDto {
     private Long id;
     private Long userId;
+    private String studentName;
     private Long exerciseId;
+    private String exerciseContent;
+    private String exerciseAnswerKey;
     private String exerciseType;
     private String exerciseDifficulty;
     private String answer;

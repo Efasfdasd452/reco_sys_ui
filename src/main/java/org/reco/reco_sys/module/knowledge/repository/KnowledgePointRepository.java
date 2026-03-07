@@ -9,5 +9,7 @@ public interface KnowledgePointRepository extends JpaRepository<KnowledgePoint, 
     List<KnowledgePoint> findByCourseId(Long courseId);
     List<KnowledgePoint> findByCourseIdAndParentIdIsNull(Long courseId);
     java.util.Optional<KnowledgePoint> findByPyKcIndex(Integer pyKcIndex);
+    java.util.Optional<KnowledgePoint> findByPyKcIndexAndCourseId(Integer pyKcIndex, Long courseId);
     boolean existsByPyKcIndexIsNotNull();
+    boolean existsByPyKcIndexAndCourseId(Integer pyKcIndex, Long courseId);
 }

@@ -17,6 +17,9 @@ import AnswerHistoryPage from './pages/student/AnswerHistoryPage'
 import GradePage from './pages/teacher/GradePage'
 import ExerciseManagePage from './pages/teacher/ExerciseManagePage'
 import KnowledgeManagePage from './pages/teacher/KnowledgeManagePage'
+import TeacherClassroomPage from './pages/teacher/TeacherClassroomPage'
+import TeacherRecommendPage from './pages/teacher/TeacherRecommendPage'
+import StudentClassroomPage from './pages/student/StudentClassroomPage'
 import AdminPage from './pages/admin/AdminPage'
 import './i18n'
 
@@ -39,11 +42,36 @@ export default function App() {
               <Route path="courses" element={<CoursePage />} />
               <Route path="exercises" element={<ExerciseListPage />} />
               <Route path="exercises/:id" element={<ExerciseDetailPage />} />
-              <Route path="recommend" element={<RecommendPage />} />
+              <Route
+                path="recommend"
+                element={
+                  <RequireAuth roles={['STUDENT']}>
+                    <RecommendPage />
+                  </RequireAuth>
+                }
+              />
               <Route path="knowledge" element={<KnowledgeGraphPage />} />
               <Route path="notifications" element={<NotificationPage />} />
               <Route path="profile" element={<ProfilePage />} />
               <Route path="history" element={<AnswerHistoryPage />} />
+              {/* 班级管理：教师/管理员 vs 学生 */}
+              <Route
+                path="classrooms"
+                element={
+                  <RequireAuth roles={['TEACHER', 'ADMIN']}>
+                    <TeacherClassroomPage />
+                  </RequireAuth>
+                }
+              />
+              <Route path="my-classrooms" element={<StudentClassroomPage />} />
+              <Route
+                path="teacher-recommend"
+                element={
+                  <RequireAuth roles={['TEACHER', 'ADMIN']}>
+                    <TeacherRecommendPage />
+                  </RequireAuth>
+                }
+              />
               {/* 教师/管理员 */}
               <Route
                 path="grade"

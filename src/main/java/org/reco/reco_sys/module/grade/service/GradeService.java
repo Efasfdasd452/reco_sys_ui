@@ -6,6 +6,6 @@ import org.reco.reco_sys.module.learning.dto.AnswerRecordDto;
 import java.util.List;
 
 public interface GradeService {
-    List<AnswerRecordDto> listPendingByCourse(Long courseId);
+    List<AnswerRecordDto> listPendingByCourse(Long courseId, Long requesterId);
     AnswerRecordDto grade(Long recordId, GradeRequest request, Long teacherId);
 }

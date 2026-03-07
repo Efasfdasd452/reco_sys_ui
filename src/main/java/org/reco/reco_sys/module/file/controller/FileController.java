@@ -15,7 +15,9 @@ public class FileController {
     private final JwtUtil jwtUtil;
 
     @PostMapping("/api/files/upload-image")
-    public Result<String> uploadImage(@RequestParam("file") MultipartFile file) {
+    public Result<String> uploadImage(@RequestParam("file") MultipartFile file,
+                                      @RequestHeader("Authorization") String token) {
+        jwtUtil.getUserId(extractToken(token)); // 仅验证登录状态，不使用 userId
         return Result.success(fileService.uploadImage(file));
     }
 

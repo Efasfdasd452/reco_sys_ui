@@ -25,6 +25,10 @@ public class Course {
     @Column(name = "teacher_id")
     private Long teacherId;
 
+    /** 课程邀请码，学生凭此申请加入课程 */
+    @Column(name = "invite_code", unique = true, length = 10)
+    private String inviteCode;
+
     @Column(name = "is_active")
     private Boolean isActive = true;
 
