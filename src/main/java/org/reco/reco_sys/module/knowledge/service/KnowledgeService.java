@@ -2,7 +2,6 @@ package org.reco.reco_sys.module.knowledge.service;
 
 import org.reco.reco_sys.module.knowledge.dto.GraphDto;
 import org.reco.reco_sys.module.knowledge.dto.KnowledgePointDto;
-import org.reco.reco_sys.module.knowledge.entity.KnowledgePoint;
 
 import java.util.List;
 
