@@ -7,6 +7,7 @@ import org.reco.reco_sys.module.course.repository.CourseRepository;
 import org.reco.reco_sys.module.grade.dto.GradeRequest;
 import org.reco.reco_sys.module.grade.service.GradeService;
 import org.reco.reco_sys.module.learning.dto.AnswerRecordDto;
+import org.reco.reco_sys.module.learning.service.LearningService;
 import org.reco.reco_sys.module.exercise.repository.ExerciseRepository;
 import org.reco.reco_sys.module.learning.entity.AnswerRecord;
 import org.reco.reco_sys.module.learning.repository.AnswerRecordRepository;
@@ -30,6 +31,7 @@ public class GradeServiceImpl implements GradeService {
     private final ExerciseRepository exerciseRepository;
     private final SysUserRepository userRepository;
     private final CourseRepository courseRepository;
+    private final LearningService learningService;
 
     @Override
     public List<AnswerRecordDto> listPendingByCourse(Long courseId, Long requesterId) {
@@ -73,6 +75,13 @@ public class GradeServiceImpl implements GradeService {
         record.setGradedBy(teacherId);
         record.setGradedAt(LocalDateTime.now());
         AnswerRecord saved = answerRecordRepository.save(record);
+
+        // 批改后更新该题涉及知识点的 correctCount，用于知识图谱 mlkc（主观题提交时只更新了 totalCount）
+        learningService.updateKcStateFromGrading(
+                record.getUserId(),
+                record.getExerciseId(),
+                request.getScore() != null && request.getScore() >= 60
+        );
 
         notificationService.send(
                 record.getUserId(),

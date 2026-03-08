@@ -42,19 +42,21 @@ public class LearningServiceImpl implements LearningService {
         record.setAnswer(request.getAnswer());
         record.setTimeSpent(request.getTimeSpent());
 
-        // Auto-grade for objective questions
+        // Auto-grade for objective questions；主观题仅记录，待教师批改后更新 correctCount
+        Boolean correctOrNull = null;
         if (ex.getType() == Exercise.Type.SINGLE_CHOICE || ex.getType() == Exercise.Type.MULTIPLE_CHOICE
                 || ex.getType() == Exercise.Type.FILL_BLANK || ex.getType() == Exercise.Type.TRUE_FALSE) {
             if (ex.getAnswerKey() != null) {
                 boolean correct = ex.getAnswerKey().trim().equalsIgnoreCase(request.getAnswer().trim());
                 record.setScore(correct ? 100 : 0);
                 record.setStatus(AnswerRecord.Status.AUTO_GRADED);
-                // 文档公式：mlkc = correctCount / totalCount，pkc 分子也是 totalCount
-                updateKcState(userId, ex.getId(), correct);
+                correctOrNull = correct;
             }
         } else {
             record.setStatus(AnswerRecord.Status.SUBMITTED);
         }
+        // 任意题型提交都更新 KC 的 totalCount（保证 pkc 分母/分子一致）；correct 已知时同时更新 correctCount
+        updateKcState(userId, ex.getId(), correctOrNull);
 
         return toDto(answerRecordRepository.save(record));
     }
@@ -76,12 +78,41 @@ public class LearningServiceImpl implements LearningService {
         kcStateRepository.deleteByUserId(userId);
     }
 
+    @Override
+    @Transactional
+    public void updateKcStateFromGrading(Long userId, Long exerciseId, boolean correct) {
+        List<ExerciseKpRel> rels = kpRelRepository.findByExerciseId(exerciseId);
+        for (ExerciseKpRel rel : rels) {
+            UserKcState state = kcStateRepository.findByUserIdAndKpId(userId, rel.getKpId())
+                    .orElseGet(() -> {
+                        UserKcState s = new UserKcState();
+                        s.setUserId(userId);
+                        s.setKpId(rel.getKpId());
+                        s.setCorrectCount(0);
+                        s.setTotalCount(0);
+                        s.setMasteryLevel(0.0);
+                        return kcStateRepository.save(s);
+                    });
+            if (state.getTotalCount() == 0) {
+                state.setTotalCount(1);
+                state.setCorrectCount(correct ? 1 : 0);
+            } else {
+                if (correct) {
+                    state.setCorrectCount(state.getCorrectCount() + 1);
+                }
+            }
+            state.setMasteryLevel((double) state.getCorrectCount() / state.getTotalCount());
+            kcStateRepository.save(state);
+        }
+    }
+
     /**
      * 按文档公式实时更新 KC 状态：
      *   mlkc(kc_i) = correctCount / totalCount
      *   pkc(kc_i) 的分子也是 totalCount（除以总答题数在推荐侧计算）
+     * @param correct 客观题已知对错时传入 true/false；主观题（问答题）传入 null，仅增加 totalCount，批改时再更新 correctCount
      */
-    private void updateKcState(Long userId, Long exerciseId, boolean correct) {
+    private void updateKcState(Long userId, Long exerciseId, Boolean correct) {
         List<ExerciseKpRel> rels = kpRelRepository.findByExerciseId(exerciseId);
         for (ExerciseKpRel rel : rels) {
             UserKcState state = kcStateRepository.findByUserIdAndKpId(userId, rel.getKpId())
@@ -95,8 +126,9 @@ public class LearningServiceImpl implements LearningService {
                         return s;
                     });
             state.setTotalCount(state.getTotalCount() + 1);
-            if (correct) state.setCorrectCount(state.getCorrectCount() + 1);
-            // mlkc = correctCount / totalCount
+            if (Boolean.TRUE.equals(correct)) {
+                state.setCorrectCount(state.getCorrectCount() + 1);
+            }
             state.setMasteryLevel((double) state.getCorrectCount() / state.getTotalCount());
             kcStateRepository.save(state);
         }
