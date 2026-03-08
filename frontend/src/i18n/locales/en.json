@@ -47,6 +47,7 @@
     "type": {
       "SINGLE_CHOICE": "Single Choice",
       "MULTIPLE_CHOICE": "Multiple Choice",
+      "TRUE_FALSE": "True/False",
       "FILL_BLANK": "Fill in the Blank",
       "SHORT_ANSWER": "Short Answer"
     },

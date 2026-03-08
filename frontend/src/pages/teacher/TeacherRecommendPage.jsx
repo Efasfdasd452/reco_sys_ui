@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Card, List, Tag, Button, Select, Typography, Spin, Alert, Empty } from 'antd'
+import { Card, List, Tag, Button, Select, Typography, Spin, Alert, Empty, Progress } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
-import ReactMarkdown from 'react-markdown'
+import MathMarkdown from '../../components/MathMarkdown'
 import { api } from '../../api'
 
 const difficultyColor = { EASY: 'green', MEDIUM: 'orange', HARD: 'red' }
@@ -123,8 +123,45 @@ export default function TeacherRecommendPage() {
                     </span>
                   }
                 >
-                  <ReactMarkdown>{item.content}</ReactMarkdown>
-                  {item.reason && (
+                  <MathMarkdown>{item.content}</MathMarkdown>
+                  {item.kcDetails && item.kcDetails.length > 0 && (
+                    <div style={{ marginTop: 8, padding: '8px 12px', background: '#f6ffed', borderRadius: 6 }}>
+                      <div style={{ fontSize: 12, color: '#389e0d', marginBottom: 6 }}>
+                        推荐理由
+                        {item.exerciseExfr != null && (
+                          <Tag color={item.exerciseExfr > 0.5 ? 'red' : item.exerciseExfr > 0.2 ? 'orange' : 'green'} style={{ fontSize: 11, marginLeft: 8 }}>
+                            遗忘率 {Math.round(item.exerciseExfr * 100)}%
+                          </Tag>
+                        )}
+                      </div>
+                      {item.kcDetails.map(kc => (
+                        <div key={kc.kcName} style={{ marginBottom: 6 }}>
+                          <div style={{ fontSize: 12, color: '#555', marginBottom: 3 }}>{kc.kcName}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingLeft: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 11, color: '#888', minWidth: 80 }}>掌握度 (mlkc)</span>
+                              <Progress
+                                percent={Math.round(kc.mastery * 100)}
+                                size="small"
+                                style={{ flex: 1, minWidth: 80 }}
+                                strokeColor={kc.mastery >= 0.8 ? '#52c41a' : kc.mastery >= 0.5 ? '#faad14' : '#ff4d4f'}
+                              />
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontSize: 11, color: '#888', minWidth: 80 }}>出现概率 (pkc)</span>
+                              <Progress
+                                percent={Math.round((kc.pkc ?? 0) * 100)}
+                                size="small"
+                                style={{ flex: 1, minWidth: 80 }}
+                                strokeColor="#1677ff"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {(!item.kcDetails || item.kcDetails.length === 0) && item.reason && (
                     <div style={{ marginTop: 8, padding: '8px 12px', background: '#f6ffed', borderRadius: 6, fontSize: 13, color: '#389e0d' }}>
                       推荐理由：{item.reason}
                     </div>

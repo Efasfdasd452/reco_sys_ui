@@ -6,7 +6,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface ExerciseService {
-    Page<ExerciseDto> listByCourse(Long courseId, Pageable pageable);
+    Page<ExerciseDto> listByCourse(Long courseId, Pageable pageable, String keyword);
     ExerciseDto getById(Long id);
     ExerciseDto create(ExerciseCreateRequest request, Long creatorId);
     ExerciseDto update(Long id, ExerciseCreateRequest request);

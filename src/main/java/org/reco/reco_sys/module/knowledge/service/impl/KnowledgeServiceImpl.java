@@ -4,6 +4,10 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.reco.reco_sys.common.exception.BusinessException;
 import org.reco.reco_sys.common.result.ResultCode;
+import org.reco.reco_sys.module.exercise.entity.Exercise;
+import org.reco.reco_sys.module.exercise.entity.ExerciseKpRel;
+import org.reco.reco_sys.module.exercise.repository.ExerciseKpRelRepository;
+import org.reco.reco_sys.module.exercise.repository.ExerciseRepository;
 import org.reco.reco_sys.module.knowledge.dto.GraphDto;
 import org.reco.reco_sys.module.knowledge.dto.KnowledgePointDto;
 import org.reco.reco_sys.module.knowledge.entity.KnowledgePoint;
@@ -11,14 +15,17 @@ import org.reco.reco_sys.module.knowledge.neo4j.KnowledgePointNeo4jRepository;
 import org.reco.reco_sys.module.knowledge.neo4j.KnowledgePointNode;
 import org.reco.reco_sys.module.knowledge.repository.KnowledgePointRepository;
 import org.reco.reco_sys.module.knowledge.service.KnowledgeService;
+import org.reco.reco_sys.module.learning.entity.AnswerRecord;
 import org.reco.reco_sys.module.learning.entity.UserKcState;
+import org.reco.reco_sys.module.learning.repository.AnswerRecordRepository;
 import org.reco.reco_sys.module.learning.repository.UserKcStateRepository;
+import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -29,6 +36,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     private final KnowledgePointRepository kpRepository;
     private final KnowledgePointNeo4jRepository kpNeo4jRepository;
     private final UserKcStateRepository kcStateRepository;
+    private final AnswerRecordRepository answerRecordRepository;
+    private final ExerciseRepository exerciseRepository;
+    private final ExerciseKpRelRepository exerciseKpRelRepository;
+    private final Neo4jClient neo4jClient;
+
+    /** 最大遗忘周期（分钟），超过此时长 exfr = 1.0 */
+    private static final double MAX_FORGET_MINUTES = 7 * 24 * 60.0; // 7天
 
     @Override
     public List<KnowledgePointDto> listByCourse(Long courseId) {
@@ -80,18 +94,8 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     @Override
     @Transactional
     public void addRelation(Long fromId, Long toId, String relationType) {
-        KnowledgePointNode from = kpNeo4jRepository.findByMysqlId(fromId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "知识点不存在"));
-        KnowledgePointNode to = kpNeo4jRepository.findByMysqlId(toId)
-                .orElseThrow(() -> new BusinessException(ResultCode.NOT_FOUND, "知识点不存在"));
-        if ("PREREQUISITE_OF".equals(relationType)) {
-            if (from.getPrerequisites() == null) from.setPrerequisites(new ArrayList<>());
-            from.getPrerequisites().add(to);
-        } else {
-            if (from.getRelatedPoints() == null) from.setRelatedPoints(new ArrayList<>());
-            from.getRelatedPoints().add(to);
-        }
-        kpNeo4jRepository.save(from);
+        // 关系现在通过 Neo4jClient 维护，此接口保留用于兼容，不做操作
+        log.info("addRelation called: {} -> {} type={}", fromId, toId, relationType);
     }
 
     @Override
@@ -104,65 +108,144 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         return buildGraph(courseId, targetUserId);
     }
 
+    /**
+     * 按文档《新学生个人知识图谱设计》构建以学生为中心的图谱：
+     *
+     * 节点：student（虚拟中心）+ kc（已交互的知识点）+ exercise（已答题目）
+     * 边：
+     *   kc  ──[mlkc=X%]──→ student   (掌握度)
+     *   kc  ──[pkc=X%]──→  student   (出现概率 = totalCount/总答题数)
+     *   ex  ──[exfr=X]──→  student   (遗忘率)
+     *   ex  ──[covers]──→  kc        (Q矩阵静态覆盖关系)
+     *
+     * 全部从 MySQL 计算，无需查 Neo4j（Neo4j 供 Python 推荐模型使用）。
+     */
     private GraphDto buildGraph(Long courseId, Long userId) {
-        List<KnowledgePoint> kps = kpRepository.findByCourseId(courseId);
+        List<GraphDto.GraphNode> nodes = new ArrayList<>();
+        List<GraphDto.GraphEdge> edges = new ArrayList<>();
+
+        // ── 0. 学生中心节点 ─────────────────────────────────────────────
+        GraphDto.GraphNode studentNode = new GraphDto.GraphNode();
+        studentNode.setId("student");
+        studentNode.setNodeType("student");
+        studentNode.setLabel("我");
+        nodes.add(studentNode);
+
+        // ── 1. KC 节点 ──────────────────────────────────────────────────
         List<UserKcState> states = kcStateRepository.findByUserId(userId);
-        Map<Long, Double> masteryMap = states.stream()
-                .collect(Collectors.toMap(UserKcState::getKpId, UserKcState::getMasteryLevel));
+        List<KnowledgePoint> allCourseKps = kpRepository.findByCourseId(courseId);
+        Map<Long, KnowledgePoint> kpById = allCourseKps.stream()
+                .collect(Collectors.toMap(KnowledgePoint::getId, kp -> kp));
+
+        // pkc 分母：该学生总答题数
+        long totalExercisesDone = answerRecordRepository.countDistinctExerciseIdsByUserId(userId);
+
+        Set<Long> visibleKpIds = new LinkedHashSet<>();
+        for (UserKcState state : states) {
+            KnowledgePoint kp = kpById.get(state.getKpId());
+            if (kp == null) continue; // 不属于本课程
+            visibleKpIds.add(kp.getId());
+
+            double mastery = state.getMasteryLevel();
+            double pkc = totalExercisesDone > 0
+                    ? Math.min(1.0, (double) state.getTotalCount() / totalExercisesDone)
+                    : 0.0;
+
+            GraphDto.GraphNode node = new GraphDto.GraphNode();
+            node.setId("kc_" + kp.getId());
+            node.setNodeType("kc");
+            node.setLabel(kp.getName());
+            node.setMasteryLevel(mastery);
+            node.setPkc(pkc);
+            nodes.add(node);
+
+            // kc → student: mlkc 边
+            GraphDto.GraphEdge mlkcEdge = new GraphDto.GraphEdge();
+            mlkcEdge.setSource("kc_" + kp.getId());
+            mlkcEdge.setTarget("student");
+            mlkcEdge.setLabel(String.format("mlkc=%.0f%%", mastery * 100));
+            mlkcEdge.setEdgeType("mlkc");
+            edges.add(mlkcEdge);
+
+            // kc → student: pkc 边
+            GraphDto.GraphEdge pkcEdge = new GraphDto.GraphEdge();
+            pkcEdge.setSource("kc_" + kp.getId());
+            pkcEdge.setTarget("student");
+            pkcEdge.setLabel(String.format("pkc=%.0f%%", pkc * 100));
+            pkcEdge.setEdgeType("pkc");
+            edges.add(pkcEdge);
+        }
+
+        // 冷启动：尚未答题，展示前 20 个 KC 供参考（无连线到 student）
+        if (visibleKpIds.isEmpty()) {
+            allCourseKps.stream().limit(20).forEach(kp -> {
+                visibleKpIds.add(kp.getId());
+                GraphDto.GraphNode node = new GraphDto.GraphNode();
+                node.setId("kc_" + kp.getId());
+                node.setNodeType("kc");
+                node.setLabel(kp.getName());
+                node.setMasteryLevel(0.0);
+                node.setPkc(0.0);
+                nodes.add(node);
+            });
+        }
+
+        // ── 2. Exercise 节点 + exfr 边 ───────────────────────────────────
+        List<Long> answeredExIds = answerRecordRepository.findDistinctExerciseIdsByUserId(userId);
+        List<Exercise> answeredExercises = answeredExIds.isEmpty()
+                ? Collections.emptyList()
+                : exerciseRepository.findAllById(answeredExIds).stream()
+                        .filter(e -> courseId.equals(e.getCourseId()))
+                        .collect(Collectors.toList());
+
+        Map<Long, Double> exfrMap = new HashMap<>();
+        if (!answeredExIds.isEmpty()) {
+            LocalDateTime now = LocalDateTime.now();
+            List<AnswerRecord> latestRecords =
+                    answerRecordRepository.findLatestPerExercise(userId, answeredExIds);
+            for (AnswerRecord ar : latestRecords) {
+                long minutes = ChronoUnit.MINUTES.between(ar.getSubmittedAt(), now);
+                exfrMap.put(ar.getExerciseId(), Math.min(minutes / MAX_FORGET_MINUTES, 1.0));
+            }
+        }
+
+        Set<Long> visibleExIds = new LinkedHashSet<>();
+        for (Exercise ex : answeredExercises) {
+            visibleExIds.add(ex.getId());
+            double exfr = exfrMap.getOrDefault(ex.getId(), 0.0);
+            String exLabel = ex.getPyExIndex() != null ? "ex" + ex.getPyExIndex() : "ex#" + ex.getId();
+
+            GraphDto.GraphNode node = new GraphDto.GraphNode();
+            node.setId("ex_" + ex.getId());
+            node.setNodeType("exercise");
+            node.setLabel(exLabel);
+            node.setExfr(exfr);
+            nodes.add(node);
+
+            // ex → student: exfr 边
+            GraphDto.GraphEdge exfrEdge = new GraphDto.GraphEdge();
+            exfrEdge.setSource("ex_" + ex.getId());
+            exfrEdge.setTarget("student");
+            exfrEdge.setLabel(String.format("exfr=%.2f", exfr));
+            exfrEdge.setEdgeType("exfr");
+            edges.add(exfrEdge);
+        }
+
+        // ── 3. COVERS 边：exercise → kc（Q矩阵静态，仅可见节点间）─────
+        for (Long exId : visibleExIds) {
+            for (ExerciseKpRel rel : exerciseKpRelRepository.findByExerciseId(exId)) {
+                if (visibleKpIds.contains(rel.getKpId())) {
+                    GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
+                    edge.setSource("ex_" + exId);
+                    edge.setTarget("kc_" + rel.getKpId());
+                    edge.setLabel("covers");
+                    edge.setEdgeType("covers");
+                    edges.add(edge);
+                }
+            }
+        }
 
         GraphDto graph = new GraphDto();
-        List<GraphDto.GraphNode> nodes = kps.stream().map(kp -> {
-            GraphDto.GraphNode node = new GraphDto.GraphNode();
-            node.setId("kp_" + kp.getId());
-            node.setLabel(kp.getName());
-            node.setType("knowledge_point");
-            node.setMasteryLevel(masteryMap.getOrDefault(kp.getId(), 0.0));
-            return node;
-        }).collect(Collectors.toList());
-
-        List<GraphDto.GraphEdge> edges = new ArrayList<>();
-        // MySQL 父子边
-        for (KnowledgePoint kp : kps) {
-            if (kp.getParentId() != null) {
-                GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
-                edge.setSource("kp_" + kp.getParentId());
-                edge.setTarget("kp_" + kp.getId());
-                edge.setLabel("包含");
-                edges.add(edge);
-            }
-        }
-        // Neo4j 关系边（PREREQUISITE_OF / RELATED_TO）
-        // 一次性批量查询，避免 N+1；Neo4j 为空时安全跳过
-        try {
-            List<KnowledgePointNode> neo4jNodes =
-                    kpNeo4jRepository.findAllByCourseId(String.valueOf(courseId));
-            for (KnowledgePointNode node : neo4jNodes) {
-                if (node.getMysqlId() == null) continue;
-                if (node.getPrerequisites() != null) {
-                    for (KnowledgePointNode pre : node.getPrerequisites()) {
-                        if (pre.getMysqlId() == null) continue;
-                        GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
-                        edge.setSource("kp_" + node.getMysqlId());
-                        edge.setTarget("kp_" + pre.getMysqlId());
-                        edge.setLabel("先修");
-                        edges.add(edge);
-                    }
-                }
-                if (node.getRelatedPoints() != null) {
-                    for (KnowledgePointNode rel : node.getRelatedPoints()) {
-                        if (rel.getMysqlId() == null) continue;
-                        GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
-                        edge.setSource("kp_" + node.getMysqlId());
-                        edge.setTarget("kp_" + rel.getMysqlId());
-                        edge.setLabel("相关");
-                        edges.add(edge);
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Neo4j 不可用或库为空时，仅记录 warn，图谱降级为纯 MySQL 边
-            log.warn("Neo4j 查询关系边失败，图谱将只展示父子结构：{}", e.getMessage());
-        }
         graph.setNodes(nodes);
         graph.setEdges(edges);
         return graph;

@@ -4,7 +4,7 @@ import {
   Modal, Select, Typography, message, Descriptions, Divider, Empty
 } from 'antd'
 import { useTranslation } from 'react-i18next'
-import ReactMarkdown from 'react-markdown'
+import MathMarkdown from '../../components/MathMarkdown'
 import { api } from '../../api'
 
 const statusColor = { SUBMITTED: 'orange', GRADING: 'blue', GRADED: 'green', AUTO_GRADED: 'cyan' }
@@ -105,7 +105,7 @@ export default function GradePage() {
               {/* 题目内容 */}
               <div style={{ background: '#fafafa', padding: '8px 12px', borderRadius: 6, marginBottom: 8, borderLeft: '3px solid #1677ff' }}>
                 <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>题目</div>
-                <ReactMarkdown>{record.exerciseContent ?? '(无题目内容)'}</ReactMarkdown>
+                <MathMarkdown>{record.exerciseContent ?? '(无题目内容)'}</MathMarkdown>
               </div>
 
               {/* 学生答案 */}
@@ -145,7 +145,7 @@ export default function GradePage() {
           <>
             <Descriptions size="small" column={1} style={{ marginBottom: 12 }}>
               <Descriptions.Item label="题目">
-                <ReactMarkdown>{grading.exerciseContent}</ReactMarkdown>
+                <MathMarkdown>{grading.exerciseContent}</MathMarkdown>
               </Descriptions.Item>
               <Descriptions.Item label="学生答案">
                 <strong>{grading.answer}</strong>

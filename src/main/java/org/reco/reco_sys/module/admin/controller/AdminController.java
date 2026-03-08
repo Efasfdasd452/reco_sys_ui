@@ -53,6 +53,32 @@ public class AdminController {
         }
     }
 
+    /**
+     * 从 Python 推荐服务导入知识点和习题（自动建课）。
+     */
+    @PostMapping("/init-python-data")
+    public Result<Map<String, Object>> initPythonData(@RequestHeader("Authorization") String token) {
+        Long adminUserId = jwtUtil.getUserId(extractToken(token));
+        return Result.success(adminService.initPythonData(adminUserId));
+    }
+
+    /**
+     * 同步 Neo4j 知识图谱：KC节点 + Exercise节点 + COVERS边（按新设计文档）。
+     */
+    @PostMapping("/sync-neo4j")
+    public Result<Map<String, Object>> syncNeo4j(@RequestParam Long courseId) {
+        return Result.success(adminService.syncNeo4jRelations(courseId));
+    }
+
+    /**
+     * 清除 Neo4j 中旧设计遗留的 RELATED_TO 边（迁移用，执行一次即可）。
+     */
+    @PostMapping("/clean-neo4j-old-edges")
+    public Result<String> cleanOldEdges() {
+        adminService.cleanOldNeo4jEdges();
+        return Result.success("已清除旧的 RELATED_TO 边");
+    }
+
     private String extractToken(String bearer) {
         return bearer != null && bearer.startsWith("Bearer ") ? bearer.substring(7) : bearer;
     }

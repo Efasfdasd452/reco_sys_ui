@@ -7,7 +7,7 @@ import {
 import {
   MobileOutlined, PictureOutlined, SendOutlined, ArrowLeftOutlined,
 } from '@ant-design/icons'
-import ReactMarkdown from 'react-markdown'
+import MathMarkdown from '../../components/MathMarkdown'
 import MDEditor from '@uiw/react-md-editor'
 import { QRCodeCanvas } from 'qrcode.react'
 import { useTranslation } from 'react-i18next'
@@ -101,7 +101,7 @@ export default function ExerciseDetailPage() {
   if (loading) return <div style={{ padding: 40, textAlign: 'center' }}><Spin size="large" /></div>
   if (!exercise) return <Alert message="习题不存在" type="error" />
 
-  const isObjective = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'FILL_BLANK'].includes(exercise.type)
+  const isObjective = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'FILL_BLANK', 'TRUE_FALSE'].includes(exercise.type)
 
   // 解析选项（约定选择题 content 格式：题干\nA. ...\nB. ...\n）
   const parseOptions = (content) => {
@@ -122,16 +122,19 @@ export default function ExerciseDetailPage() {
 
       <Card
         title={
-          <Space>
+          <Space wrap>
             <Tag>{t(`exercise.type.${exercise.type}`)}</Tag>
             <Tag color={difficultyColor[exercise.difficulty]}>{t(`exercise.difficulty.${exercise.difficulty}`)}</Tag>
+            {exercise.knowledgePointNames?.map(name => (
+              <Tag key={name} color="blue">{name}</Tag>
+            ))}
             <span style={{ color: '#999', fontSize: 13 }}>用时：{Math.floor(timeSpent / 60)}:{String(timeSpent % 60).padStart(2, '0')}</span>
           </Space>
         }
         style={{ marginBottom: 16 }}
       >
         <div style={{ fontSize: 16, lineHeight: 1.8 }}>
-          <ReactMarkdown>{exercise.content}</ReactMarkdown>
+          <MathMarkdown>{exercise.content}</MathMarkdown>
         </div>
       </Card>
 
@@ -179,11 +182,25 @@ export default function ExerciseDetailPage() {
             )
           }
         >
-          {/* 选择题 */}
+          {/* 判断题 */}
+          {exercise.type === 'TRUE_FALSE' && (
+            <Radio.Group value={answer} onChange={e => setAnswer(e.target.value)}>
+              <Space>
+                <Radio value="对">✔ 对</Radio>
+                <Radio value="错">✘ 错</Radio>
+              </Space>
+            </Radio.Group>
+          )}
+
+          {/* 单选题 */}
           {exercise.type === 'SINGLE_CHOICE' && (
             <Radio.Group value={answer} onChange={e => setAnswer(e.target.value)}>
               <Space direction="vertical">
-                {options.map(o => <Radio key={o.value} value={o.value}>{o.label}</Radio>)}
+                {options.map(o => (
+                    <Radio key={o.value} value={o.value}>
+                      <MathMarkdown inline>{o.label}</MathMarkdown>
+                    </Radio>
+                  ))}
               </Space>
             </Radio.Group>
           )}
@@ -194,7 +211,11 @@ export default function ExerciseDetailPage() {
               onChange={vals => setAnswer(vals.sort().join(','))}
             >
               <Space direction="vertical">
-                {options.map(o => <Checkbox key={o.value} value={o.value}>{o.label}</Checkbox>)}
+                {options.map(o => (
+                    <Checkbox key={o.value} value={o.value}>
+                      <MathMarkdown inline>{o.label}</MathMarkdown>
+                    </Checkbox>
+                  ))}
               </Space>
             </Checkbox.Group>
           )}
@@ -229,7 +250,7 @@ export default function ExerciseDetailPage() {
                   label: '预览',
                   children: (
                     <div style={{ minHeight: 200, padding: 16, border: '1px solid #d9d9d9', borderRadius: 6 }}>
-                      <ReactMarkdown>{answer || '（暂无内容）'}</ReactMarkdown>
+                      <MathMarkdown>{answer || '（暂无内容）'}</MathMarkdown>
                     </div>
                   ),
                 },

@@ -5,14 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.reco.reco_sys.common.exception.BusinessException;
 import org.reco.reco_sys.common.result.ResultCode;
 import org.reco.reco_sys.config.AppProperties;
-import org.springframework.http.MediaType;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -31,18 +33,12 @@ public class PythonRecommendClient {
 
     private final AppProperties appProperties;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    private final RestClient restClient;
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();
 
     public PythonRecommendClient(AppProperties appProperties) {
         this.appProperties = appProperties;
-        // 【修改点】手动指定使用 SimpleClientHttpRequestFactory (强制 HTTP/1.1)
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000); // 建议加上超时时间
-        factory.setReadTimeout(10000);   // 建议加上超时时间
-        this.restClient = RestClient.builder()
-                .requestFactory(factory)
-                .defaultHeader("X-API-Key", appProperties.getRecommendServiceApiKey())
-                .build();
     }
 
     /**
@@ -69,16 +65,14 @@ public class PythonRecommendClient {
             body.setTopN(topN);
 
             String jsonBody = objectMapper.writeValueAsString(body);
-            String jsonResp = restClient
-                    .post()
-                    .uri(apiUrl("/api/v1/recommend"))
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(jsonBody)
-                    .retrieve()
-                    .body(String.class);
-
-            RecommendResponse response = jsonResp != null
-                    ? objectMapper.readValue(jsonResp, RecommendResponse.class) : null;
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl("/api/v1/recommend")))
+                    .header("Content-Type", "application/json")
+                    .header("X-API-Key", appProperties.getRecommendServiceApiKey())
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            RecommendResponse response = objectMapper.readValue(resp.body(), RecommendResponse.class);
             return response != null && response.getRecommendations() != null
                     ? response.getRecommendations()
                     : List.of();
@@ -94,11 +88,12 @@ public class PythonRecommendClient {
     @SuppressWarnings("unchecked")
     public List<KcItem> listKnowledgeConcepts() {
         try {
-            String json = restClient
-                    .get()
-                    .uri(apiUrl("/api/v1/knowledge-concepts"))
-                    .retrieve()
-                    .body(String.class);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl("/api/v1/knowledge-concepts")))
+                    .header("X-API-Key", appProperties.getRecommendServiceApiKey())
+                    .GET()
+                    .build();
+            String json = httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
             if (json == null) return List.of();
             Map<String, Object> resp = objectMapper.readValue(json, Map.class);
             List<Map<String, Object>> raw = (List<Map<String, Object>>) resp.get("knowledge_concepts");
@@ -120,11 +115,12 @@ public class PythonRecommendClient {
     @SuppressWarnings("unchecked")
     public List<ExItem> listExercises() {
         try {
-            String json = restClient
-                    .get()
-                    .uri(apiUrl("/api/v1/exercises"))
-                    .retrieve()
-                    .body(String.class);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl("/api/v1/exercises")))
+                    .header("X-API-Key", appProperties.getRecommendServiceApiKey())
+                    .GET()
+                    .build();
+            String json = httpClient.send(request, HttpResponse.BodyHandlers.ofString()).body();
             if (json == null) return List.of();
             Map<String, Object> resp = objectMapper.readValue(json, Map.class);
             List<Map<String, Object>> raw = (List<Map<String, Object>>) resp.get("exercises");

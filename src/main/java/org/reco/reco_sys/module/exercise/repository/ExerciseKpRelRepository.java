@@ -9,4 +9,5 @@ public interface ExerciseKpRelRepository extends JpaRepository<ExerciseKpRel, Lo
     List<ExerciseKpRel> findByExerciseId(Long exerciseId);
     List<ExerciseKpRel> findByKpId(Long kpId);
     void deleteByExerciseId(Long exerciseId);
+    boolean existsByExerciseIdAndKpId(Long exerciseId, Long kpId);
 }

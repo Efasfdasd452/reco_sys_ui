@@ -41,8 +41,8 @@ export const api = {
   },
 
   exercise: {
-    listByCourse: (courseId, page = 0, size = 20) =>
-      request.get(`/exercises/course/${courseId}`, { params: { page, size } }),
+    listByCourse: (courseId, page = 0, size = 10, keyword = '', sortBy = 'pyExIndex', sortDir = 'asc') =>
+      request.get(`/exercises/course/${courseId}`, { params: { page, size, keyword, sortBy, sortDir } }),
     get: (id) => request.get(`/exercises/${id}`),
     create: (data) => request.post('/exercises', data),
     update: (id, data) => request.put(`/exercises/${id}`, data),
@@ -54,6 +54,7 @@ export const api = {
     history: (page = 0, size = 20) =>
       request.get('/learning/history', { params: { page, size } }),
     answeredIds: () => request.get('/learning/answered-ids'),
+    clearHistory: () => request.delete('/learning/history'),
   },
 
   grade: {
@@ -111,6 +112,8 @@ export const api = {
     setRole: (userId, role) =>
       request.put(`/admin/users/${userId}/role`, null, { params: { role } }),
     initDataset: (courseId) => request.post('/admin/init-dataset', null, { params: { courseId } }),
+    initPythonData: () => request.post('/admin/init-python-data'),
+    syncNeo4j: (courseId) => request.post('/admin/sync-neo4j', null, { params: { courseId } }),
     statistics: () => request.get('/admin/statistics'),
   },
 }

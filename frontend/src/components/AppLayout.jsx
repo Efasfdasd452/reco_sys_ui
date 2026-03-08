@@ -43,6 +43,7 @@ export default function AppLayout() {
     ] : []),
     ...(isTeacher ? [
       { key: '/teacher-recommend', icon: <StarOutlined />, label: '学生推荐' },
+      { key: '/teacher-knowledge', icon: <NodeIndexOutlined />, label: '学生图谱' },
       { key: '/classrooms', icon: <TeamOutlined />, label: '班级管理' },
       { key: '/grade', icon: <EditOutlined />, label: t('nav.grade') },
       { key: '/exercises-manage', icon: <FormOutlined />, label: '习题管理' },

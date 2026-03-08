@@ -19,6 +19,7 @@ import ExerciseManagePage from './pages/teacher/ExerciseManagePage'
 import KnowledgeManagePage from './pages/teacher/KnowledgeManagePage'
 import TeacherClassroomPage from './pages/teacher/TeacherClassroomPage'
 import TeacherRecommendPage from './pages/teacher/TeacherRecommendPage'
+import TeacherKnowledgeGraphPage from './pages/teacher/TeacherKnowledgeGraphPage'
 import StudentClassroomPage from './pages/student/StudentClassroomPage'
 import AdminPage from './pages/admin/AdminPage'
 import './i18n'
@@ -94,6 +95,14 @@ export default function App() {
                 element={
                   <RequireAuth roles={['TEACHER', 'ADMIN']}>
                     <KnowledgeManagePage />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="teacher-knowledge"
+                element={
+                  <RequireAuth roles={['TEACHER', 'ADMIN']}>
+                    <TeacherKnowledgeGraphPage />
                   </RequireAuth>
                 }
               />

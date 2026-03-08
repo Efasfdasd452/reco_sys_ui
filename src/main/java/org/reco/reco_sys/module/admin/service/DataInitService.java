@@ -7,6 +7,8 @@ import org.reco.reco_sys.module.exercise.entity.ExerciseKpRel;
 import org.reco.reco_sys.module.exercise.repository.ExerciseKpRelRepository;
 import org.reco.reco_sys.module.exercise.repository.ExerciseRepository;
 import org.reco.reco_sys.module.knowledge.entity.KnowledgePoint;
+import org.reco.reco_sys.module.knowledge.neo4j.KnowledgePointNeo4jRepository;
+import org.reco.reco_sys.module.knowledge.neo4j.KnowledgePointNode;
 import org.reco.reco_sys.module.knowledge.repository.KnowledgePointRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -15,7 +17,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * 将 algebra2005 数据集（Q矩阵）导入 MySQL 的服务。
@@ -27,6 +33,7 @@ import java.util.*;
 public class DataInitService {
 
     private final KnowledgePointRepository kpRepository;
+    private final KnowledgePointNeo4jRepository kpNeo4jRepository;
     private final ExerciseRepository exerciseRepository;
     private final ExerciseKpRelRepository exerciseKpRelRepository;
 
@@ -69,6 +76,7 @@ public class DataInitService {
 
         // 2. 导入习题（ex0 ~ ex{numExercises-1}）
         int exCreated = 0;
+        int relCreated = 0;
         for (int i = 0; i < numExercises; i++) {
             List<Integer> row = qMatrix.get(i);
             // 找该题涉及的知识点
@@ -77,35 +85,41 @@ public class DataInitService {
                 if (row.get(j) == 1) involvedKcs.add(j);
             }
 
-            // 判断是否已存在
-            if (exerciseRepository.existsByPyExIndexAndCourseId(i, courseId)) continue;
+            // 获取或创建习题
+            Exercise ex = exerciseRepository.findByPyExIndexAndCourseId(i, courseId)
+                    .orElse(null);
+            if (ex == null) {
+                String content = buildExerciseContent(i, involvedKcs);
+                ex = new Exercise();
+                ex.setCourseId(courseId);
+                ex.setType(Exercise.Type.SHORT_ANSWER);
+                ex.setDifficulty(determineDifficulty(involvedKcs.size()));
+                ex.setContent(content);
+                ex.setAnswerKey("参考答案：请结合知识点 " + involvedKcs.toString() + " 作答。");
+                ex.setPyExIndex(i);
+                ex.setCreatorId(teacherId);
+                ex = exerciseRepository.save(ex);
+                exCreated++;
+            }
 
-            // 生成有意义的占位符题目内容
-            String content = buildExerciseContent(i, involvedKcs);
-
-            Exercise ex = new Exercise();
-            ex.setCourseId(courseId);
-            ex.setType(Exercise.Type.SHORT_ANSWER);
-            ex.setDifficulty(determineDifficulty(involvedKcs.size()));
-            ex.setContent(content);
-            ex.setAnswerKey("参考答案：请结合知识点 " + involvedKcs.toString() + " 作答。");
-            ex.setPyExIndex(i);
-            ex.setCreatorId(teacherId);
-            ex = exerciseRepository.save(ex);
-
-            // 创建习题-知识点关联
+            // 创建习题-知识点关联（幂等：忽略已存在的）
+            Long exId = ex.getId();
             for (int kcIdx : involvedKcs) {
                 Long kpId = kcIndexToKpId.get(kcIdx);
-                if (kpId != null) {
+                if (kpId == null) continue;
+                if (!exerciseKpRelRepository.existsByExerciseIdAndKpId(exId, kpId)) {
                     ExerciseKpRel rel = new ExerciseKpRel();
-                    rel.setExerciseId(ex.getId());
+                    rel.setExerciseId(exId);
                     rel.setKpId(kpId);
                     exerciseKpRelRepository.save(rel);
+                    relCreated++;
                 }
             }
-            exCreated++;
         }
-        log.info("Exercise 导入完成，新增 {} 道", exCreated);
+        log.info("Exercise 导入完成，新增 {} 道，新增关联 {} 条", exCreated, relCreated);
+
+        // 3. 同步 KC 到 Neo4j（仅节点，COVERS边由 AdminService.syncNeo4jRelations 负责）
+        syncKcsToNeo4j(courseId, kcIndexToKpId);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("courseId", courseId);
@@ -114,6 +128,29 @@ public class DataInitService {
         result.put("totalExercises", numExercises);
         result.put("exerciseCreated", exCreated);
         return result;
+    }
+
+    /**
+     * 将 KC 同步到 Neo4j（仅节点，无 RELATED_TO 边——新设计已废弃该关系）。
+     * COVERS 边由 AdminService.syncNeo4jRelations() 负责。
+     */
+    private void syncKcsToNeo4j(Long courseId, Map<Integer, Long> kcIndexToKpId) {
+        try {
+            for (Map.Entry<Integer, Long> entry : kcIndexToKpId.entrySet()) {
+                final int kcIdx = entry.getKey();
+                final Long mysqlId = entry.getValue();
+                kpNeo4jRepository.findByMysqlId(mysqlId).orElseGet(() -> {
+                    KnowledgePointNode n = new KnowledgePointNode();
+                    n.setMysqlId(mysqlId);
+                    n.setName("kc" + kcIdx);
+                    n.setCourseId(String.valueOf(courseId));
+                    return kpNeo4jRepository.save(n);
+                });
+            }
+            log.info("Neo4j KC 节点同步完成：{} 个", kcIndexToKpId.size());
+        } catch (Exception e) {
+            log.warn("Neo4j 同步失败（MySQL 数据不受影响）：{}", e.getMessage());
+        }
     }
 
     private List<List<Integer>> loadQMatrix() throws IOException {

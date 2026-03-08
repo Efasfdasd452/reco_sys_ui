@@ -5,22 +5,19 @@ import org.springframework.data.neo4j.repository.query.Query;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-public interface KnowledgePointNeo4jRepository extends Neo4jRepository<KnowledgePointNode, Long> {
+public interface KnowledgePointNeo4jRepository extends Neo4jRepository<KnowledgePointNode, UUID> {
 
     /**
-     * 显式 Cypher 查询，避免 Spring Data Neo4j 8.x 派生查询在空库时的 NPE bug。
-     * OPTIONAL MATCH 保证即使关系不存在也能正常返回节点。
+     * 按 mysqlId 查找单个节点（仅返回节点本身，关系通过 Neo4jClient 单独查询）。
      */
-    @Query("MATCH (n:KnowledgePoint) WHERE n.mysqlId = $mysqlId " +
-           "OPTIONAL MATCH (n)-[:PREREQUISITE_OF]->(pre:KnowledgePoint) " +
-           "OPTIONAL MATCH (n)-[:RELATED_TO]->(rel:KnowledgePoint) " +
-           "RETURN n, collect(pre), collect(rel)")
+    @Query("MATCH (n:KnowledgePoint) WHERE n.mysqlId = $mysqlId RETURN n")
     Optional<KnowledgePointNode> findByMysqlId(Long mysqlId);
 
-    @Query("MATCH (n:KnowledgePoint) WHERE n.courseId = $courseId " +
-           "OPTIONAL MATCH (n)-[:PREREQUISITE_OF]->(pre:KnowledgePoint) " +
-           "OPTIONAL MATCH (n)-[:RELATED_TO]->(rel:KnowledgePoint) " +
-           "RETURN n, collect(pre), collect(rel)")
+    /**
+     * 按 courseId 查找所有节点（仅返回节点本身，关系通过 Neo4jClient 单独查询）。
+     */
+    @Query("MATCH (n:KnowledgePoint) WHERE n.courseId = $courseId RETURN n")
     List<KnowledgePointNode> findAllByCourseId(String courseId);
 }

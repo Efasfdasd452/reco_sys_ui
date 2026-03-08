@@ -10,4 +10,8 @@ public interface AdminService {
     void setUserRole(Long userId, String role);
     /** 从 Python 推荐服务导入知识点和习题数据（方向A数据初始化） */
     Map<String, Object> initPythonData(Long adminUserId);
+    /** 同步 Neo4j：KC节点 + Exercise节点 + COVERS边（按新设计文档） */
+    Map<String, Object> syncNeo4jRelations(Long courseId);
+    /** 清除旧设计遗留的 RELATED_TO 边 */
+    void cleanOldNeo4jEdges();
 }

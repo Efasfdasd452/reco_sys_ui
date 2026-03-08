@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Card, Row, Col, Statistic, Table, Button, Select, message, Typography, Tabs, Alert } from 'antd'
-import { UserOutlined, CloudDownloadOutlined } from '@ant-design/icons'
+import { Card, Row, Col, Statistic, Table, Button, Select, message, Typography, Tabs, Alert, InputNumber, Space } from 'antd'
+import { UserOutlined, CloudDownloadOutlined, ApartmentOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api'
 
@@ -10,6 +10,8 @@ export default function AdminPage() {
   const [users, setUsers] = useState([])
   const [initLoading, setInitLoading] = useState(false)
   const [initResult, setInitResult] = useState(null)
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncCourseId, setSyncCourseId] = useState(1)
 
   useEffect(() => {
     api.admin.statistics().then(setStats).catch(() => {})
@@ -40,6 +42,19 @@ export default function AdminPage() {
       message.error('初始化失败，请检查Python推荐服务是否运行')
     } finally {
       setInitLoading(false)
+    }
+  }
+
+  const syncNeo4j = async () => {
+    if (!syncCourseId) { message.warning('请输入课程ID'); return }
+    setSyncLoading(true)
+    try {
+      const result = await api.admin.syncNeo4j(syncCourseId)
+      message.success(`Neo4j同步完成：KC节点 ${result.neo4jKcNodes}，习题节点 ${result.neo4jExNodes}，COVERS边 ${result.neo4jCoversEdges}`)
+    } catch {
+      message.error('同步失败，请检查Neo4j是否正常运行')
+    } finally {
+      setSyncLoading(false)
     }
   }
 
@@ -117,6 +132,25 @@ export default function AdminPage() {
                     showIcon
                   />
                 )}
+              </Card>
+
+              <Card title="同步知识图谱关系（Neo4j）" style={{ marginTop: 16 }}>
+                <p style={{ color: '#666', marginBottom: 12 }}>
+                  若知识图谱页面各知识点之间没有连线，点击此按钮根据习题-知识点关联重建 Neo4j 中的 RELATED_TO 边。
+                  已有节点会复用，幂等安全。
+                </p>
+                <Space>
+                  <span>课程ID：</span>
+                  <InputNumber min={1} value={syncCourseId} onChange={setSyncCourseId} style={{ width: 100 }} />
+                  <Button
+                    icon={<ApartmentOutlined />}
+                    type="primary"
+                    loading={syncLoading}
+                    onClick={syncNeo4j}
+                  >
+                    同步Neo4j关系
+                  </Button>
+                </Space>
               </Card>
             </>
           ),

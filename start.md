@@ -1,19 +1,24 @@
-终端 1 — Spring Boot 后端：     
+
+● 配置完成。以后的工作流程是：
+
+开发时（不变，继续用两个服务器）：
+
+# 后端                                                                                                                              mvn spring-boot:run
+
+# 前端（另一个终端）
+
 ```
-cd C:\Users\ASUS\important_files\java_local\reco_sys                                                                              
-./mvnw spring-boot:run                                                                                                               
+cd frontend && npm run dev   # 访问 http://localhost:3000
 ```
 
-终端 2 — React 前端：                                                                                                             
 
+演示/部署时（打包到 Spring Boot 统一托管）：
 ```
-cd C:\Users\ASUS\important_files\java_local\reco_sys\frontend                    
-npm run dev
+cd frontend
+npm run build         # 输出到 ../src/main/resources/static/
+cd ..
+mvn spring-boot:run   # 只需要访问 http://localhost:8888
 ```
 
-然后访问 http://localhost:3000。
-
-  ---
-
-前端 3000 端口会自动将所有 /api/* 请求代理到后端 8888，所以跨域问题不存在。访问 8888 端口只是纯 API，前端入口是 3000。
+打包后 Spring Boot 同时托管前端和后端，任何路由（如 /student/recommend）刷新都不会 404，因为 SPA fallback 会返回 index.html。     
 

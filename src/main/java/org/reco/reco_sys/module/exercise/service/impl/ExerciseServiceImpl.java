@@ -12,7 +12,7 @@ import org.reco.reco_sys.module.exercise.neo4j.ExerciseNode;
 import org.reco.reco_sys.module.exercise.repository.ExerciseKpRelRepository;
 import org.reco.reco_sys.module.exercise.repository.ExerciseRepository;
 import org.reco.reco_sys.module.exercise.service.ExerciseService;
-import org.reco.reco_sys.module.knowledge.neo4j.KnowledgePointNeo4jRepository;
+import org.reco.reco_sys.module.knowledge.repository.KnowledgePointRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -28,11 +28,12 @@ public class ExerciseServiceImpl implements ExerciseService {
     private final ExerciseRepository exerciseRepository;
     private final ExerciseKpRelRepository kpRelRepository;
     private final ExerciseNeo4jRepository exerciseNeo4jRepository;
-    private final KnowledgePointNeo4jRepository kpNeo4jRepository;
+    private final KnowledgePointRepository knowledgePointRepository;
 
     @Override
-    public Page<ExerciseDto> listByCourse(Long courseId, Pageable pageable) {
-        return exerciseRepository.findByCourseId(courseId, pageable).map(this::toDto);
+    public Page<ExerciseDto> listByCourse(Long courseId, Pageable pageable, String keyword) {
+        String kw = (keyword == null) ? "" : keyword.trim();
+        return exerciseRepository.searchByCourseId(courseId, kw, pageable).map(this::toDto);
     }
 
     @Override
@@ -98,14 +99,8 @@ public class ExerciseServiceImpl implements ExerciseService {
         ExerciseNode node = exerciseNeo4jRepository.findByMysqlId(ex.getId())
                 .orElse(new ExerciseNode());
         node.setMysqlId(ex.getId());
-        node.setType(ex.getType().name());
-        node.setDifficulty(ex.getDifficulty().name());
-        if (kpIds != null && !kpIds.isEmpty()) {
-            node.setKnowledgePoints(kpIds.stream()
-                    .map(kpId -> kpNeo4jRepository.findByMysqlId(kpId).orElse(null))
-                    .filter(n -> n != null)
-                    .collect(Collectors.toList()));
-        }
+        node.setPyExIndex(ex.getPyExIndex());
+        node.setCourseId(String.valueOf(ex.getCourseId()));
         exerciseNeo4jRepository.save(node);
     }
 
@@ -122,8 +117,16 @@ public class ExerciseServiceImpl implements ExerciseService {
         dto.setContent(ex.getContent());
         dto.setDifficulty(ex.getDifficulty().name());
         dto.setAnswerKey(ex.getAnswerKey());
-        dto.setKnowledgePointIds(kpRelRepository.findByExerciseId(ex.getId()).stream()
-                .map(ExerciseKpRel::getKpId).collect(Collectors.toList()));
+        List<Long> kpIds = kpRelRepository.findByExerciseId(ex.getId()).stream()
+                .map(ExerciseKpRel::getKpId).collect(Collectors.toList());
+        dto.setKnowledgePointIds(kpIds);
+        if (!kpIds.isEmpty()) {
+            dto.setKnowledgePointNames(
+                knowledgePointRepository.findAllById(kpIds).stream()
+                    .map(kp -> kp.getName())
+                    .collect(Collectors.toList())
+            );
+        }
         return dto;
     }
 }

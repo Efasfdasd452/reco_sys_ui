@@ -44,12 +44,13 @@ public class LearningServiceImpl implements LearningService {
 
         // Auto-grade for objective questions
         if (ex.getType() == Exercise.Type.SINGLE_CHOICE || ex.getType() == Exercise.Type.MULTIPLE_CHOICE
-                || ex.getType() == Exercise.Type.FILL_BLANK) {
+                || ex.getType() == Exercise.Type.FILL_BLANK || ex.getType() == Exercise.Type.TRUE_FALSE) {
             if (ex.getAnswerKey() != null) {
                 boolean correct = ex.getAnswerKey().trim().equalsIgnoreCase(request.getAnswer().trim());
                 record.setScore(correct ? 100 : 0);
                 record.setStatus(AnswerRecord.Status.AUTO_GRADED);
-                if (correct) updateMastery(userId, ex.getId(), 0.1);
+                // 文档公式：mlkc = correctCount / totalCount，pkc 分子也是 totalCount
+                updateKcState(userId, ex.getId(), correct);
             }
         } else {
             record.setStatus(AnswerRecord.Status.SUBMITTED);
@@ -68,7 +69,19 @@ public class LearningServiceImpl implements LearningService {
         return answerRecordRepository.findDistinctExerciseIdsByUserId(userId);
     }
 
-    private void updateMastery(Long userId, Long exerciseId, double delta) {
+    @Override
+    @Transactional
+    public void clearHistory(Long userId) {
+        answerRecordRepository.deleteByUserId(userId);
+        kcStateRepository.deleteByUserId(userId);
+    }
+
+    /**
+     * 按文档公式实时更新 KC 状态：
+     *   mlkc(kc_i) = correctCount / totalCount
+     *   pkc(kc_i) 的分子也是 totalCount（除以总答题数在推荐侧计算）
+     */
+    private void updateKcState(Long userId, Long exerciseId, boolean correct) {
         List<ExerciseKpRel> rels = kpRelRepository.findByExerciseId(exerciseId);
         for (ExerciseKpRel rel : rels) {
             UserKcState state = kcStateRepository.findByUserIdAndKpId(userId, rel.getKpId())
@@ -76,10 +89,15 @@ public class LearningServiceImpl implements LearningService {
                         UserKcState s = new UserKcState();
                         s.setUserId(userId);
                         s.setKpId(rel.getKpId());
+                        s.setCorrectCount(0);
+                        s.setTotalCount(0);
                         s.setMasteryLevel(0.0);
                         return s;
                     });
-            state.setMasteryLevel(Math.min(1.0, state.getMasteryLevel() + delta));
+            state.setTotalCount(state.getTotalCount() + 1);
+            if (correct) state.setCorrectCount(state.getCorrectCount() + 1);
+            // mlkc = correctCount / totalCount
+            state.setMasteryLevel((double) state.getCorrectCount() / state.getTotalCount());
             kcStateRepository.save(state);
         }
     }

@@ -49,7 +49,7 @@ public class Exercise {
     private LocalDateTime updatedAt;
 
     public enum Type {
-        SINGLE_CHOICE, MULTIPLE_CHOICE, FILL_BLANK, SHORT_ANSWER
+        SINGLE_CHOICE, MULTIPLE_CHOICE, TRUE_FALSE, FILL_BLANK, SHORT_ANSWER
     }
 
     public enum Difficulty {

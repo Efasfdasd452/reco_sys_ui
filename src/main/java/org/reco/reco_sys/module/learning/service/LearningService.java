@@ -11,4 +11,5 @@ public interface LearningService {
     AnswerRecordDto submitAnswer(Long userId, SubmitAnswerRequest request);
     Page<AnswerRecordDto> myHistory(Long userId, Pageable pageable);
     List<Long> getAnsweredExerciseIds(Long userId);
+    void clearHistory(Long userId);
 }

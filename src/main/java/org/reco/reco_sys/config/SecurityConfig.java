@@ -33,6 +33,8 @@ public class SecurityConfig {
                 // 公开接口
                 .requestMatchers(
                     "/",
+                    "/*.html", "/*.js", "/*.css", "/*.ico", "/*.png", "/*.svg",
+                    "/assets/**",           // Vite 构建产物
                     "/api/auth/**",
                     "/mobile-upload/**",
                     "/ws/**",

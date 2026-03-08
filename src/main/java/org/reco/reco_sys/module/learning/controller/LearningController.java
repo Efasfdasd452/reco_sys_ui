@@ -42,6 +42,13 @@ public class LearningController {
         return Result.success(learningService.getAnsweredExerciseIds(userId));
     }
 
+    @DeleteMapping("/history")
+    public Result<Void> clearHistory(@RequestHeader("Authorization") String token) {
+        Long userId = jwtUtil.getUserId(extractToken(token));
+        learningService.clearHistory(userId);
+        return Result.success(null);
+    }
+
     private String extractToken(String bearer) {
         return bearer != null && bearer.startsWith("Bearer ") ? bearer.substring(7) : bearer;
     }

@@ -26,4 +26,8 @@ public class RecExerciseItem {
 
     @Column(columnDefinition = "TEXT")
     private String reason;
+
+    /** 关联的知识点 pyKcIndex 列表，JSON 格式，如 "[0,1,2]"，用于重建推荐理由 */
+    @Column(name = "kc_indices_json", columnDefinition = "TEXT")
+    private String kcIndicesJson;
 }

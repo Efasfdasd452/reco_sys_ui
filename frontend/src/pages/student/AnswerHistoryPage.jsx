@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { List, Tag, Button, Typography, Spin, Card } from 'antd'
+import { List, Tag, Button, Typography, Spin, Card, Popconfirm, message } from 'antd'
+import { DeleteOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import ReactMarkdown from 'react-markdown'
+import MathMarkdown from '../../components/MathMarkdown'
 import { api } from '../../api'
 
 const statusColor = { SUBMITTED: 'orange', GRADING: 'blue', GRADED: 'green', AUTO_GRADED: 'cyan' }
@@ -30,11 +31,33 @@ export default function AnswerHistoryPage() {
 
   useEffect(() => { load() }, [])
 
+  const handleClear = async () => {
+    try {
+      await api.learning.clearHistory()
+      message.success('答题历史已清除')
+      load(0)
+    } catch {
+      message.error('清除失败')
+    }
+  }
+
   if (loading && records.length === 0) return <Spin />
 
   return (
     <div>
-      <Typography.Title level={4} style={{ marginBottom: 16 }}>答题历史</Typography.Title>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <Typography.Title level={4} style={{ margin: 0 }}>答题历史</Typography.Title>
+        <Popconfirm
+          title="清除全部答题历史"
+          description="这将同时重置知识图谱掌握度，确认吗？"
+          onConfirm={handleClear}
+          okText="确认清除"
+          cancelText="取消"
+          okButtonProps={{ danger: true }}
+        >
+          <Button icon={<DeleteOutlined />} danger size="small">清除历史（测试用）</Button>
+        </Popconfirm>
+      </div>
       <List
         dataSource={records}
         locale={{ emptyText: '暂无答题记录' }}
@@ -65,7 +88,7 @@ export default function AnswerHistoryPage() {
                 </span>
                 <div style={{ marginTop: 8, color: '#333', fontSize: 13 }}>
                   <strong>我的答案：</strong>
-                  <ReactMarkdown>{record.answer}</ReactMarkdown>
+                  <MathMarkdown>{record.answer}</MathMarkdown>
                 </div>
                 {record.teacherComment && (
                   <div style={{ marginTop: 8, color: '#1677ff', fontSize: 13 }}>

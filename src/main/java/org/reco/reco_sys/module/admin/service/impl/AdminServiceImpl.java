@@ -20,12 +20,11 @@ import org.reco.reco_sys.module.user.dto.UserProfileDto;
 import org.reco.reco_sys.module.user.entity.SysUser;
 import org.reco.reco_sys.module.user.repository.SysUserRepository;
 import org.reco.reco_sys.module.user.service.impl.UserServiceImpl;
+import org.springframework.data.neo4j.core.Neo4jClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -41,6 +40,7 @@ public class AdminServiceImpl implements AdminService {
     private final ExerciseRepository exerciseRepository;
     private final ExerciseKpRelRepository kpRelRepository;
     private final PythonRecommendClient pythonClient;
+    private final Neo4jClient neo4jClient;
 
     @Override
     public List<UserProfileDto> listUsers() {
@@ -129,11 +129,98 @@ public class AdminServiceImpl implements AdminService {
         }
         log.info("导入习题 {} 道", exCount);
 
-        return Map.of(
+        Map<String, Object> result = new HashMap<>(Map.of(
                 "status", "success",
                 "courseId", defaultCourse.getId(),
                 "kcs", kcItems.size(),
                 "exercises", exCount
+        ));
+        // 顺带建 RELATED_TO 关系（利用刚导入的 ExerciseKpRel 数据）
+        result.putAll(syncNeo4jRelations(defaultCourse.getId()));
+        return result;
+    }
+
+    /**
+     * 按文档《新学生个人知识图谱设计》同步 Neo4j：
+     * - KnowledgePoint 节点（KC）
+     * - Exercise 节点
+     * - Exercise -[:COVERS]-> KnowledgePoint 边（来自 Q 矩阵 / ExerciseKpRel）
+     * 不再使用 KC 间 RELATED_TO（那是旧设计遗留）。
+     */
+    @Override
+    public Map<String, Object> syncNeo4jRelations(Long courseId) {
+        // 1. MERGE KC 节点
+        List<KnowledgePoint> kps = kpRepository.findByCourseId(courseId);
+        List<Map<String, Object>> kcParams = kps.stream().map(kp -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("mysqlId", kp.getId());
+            m.put("name", kp.getName());
+            m.put("courseId", String.valueOf(courseId));
+            return m;
+        }).collect(Collectors.toList());
+
+        neo4jClient.query(
+                "UNWIND $nodes AS node " +
+                "MERGE (n:KnowledgePoint {mysqlId: node.mysqlId}) " +
+                "SET n.name = node.name, n.courseId = node.courseId")
+                .bindAll(Map.of("nodes", kcParams))
+                .run();
+        log.info("Neo4j KC 节点 MERGE 完成，共 {} 个", kps.size());
+
+        // 2. MERGE Exercise 节点
+        List<Exercise> exercises = exerciseRepository.findByCourseId(courseId);
+        List<Map<String, Object>> exParams = exercises.stream().map(ex -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("mysqlId", ex.getId());
+            m.put("pyExIndex", ex.getPyExIndex() != null ? ex.getPyExIndex() : -1);
+            m.put("courseId", String.valueOf(courseId));
+            return m;
+        }).collect(Collectors.toList());
+
+        if (!exParams.isEmpty()) {
+            neo4jClient.query(
+                    "UNWIND $nodes AS node " +
+                    "MERGE (e:Exercise {mysqlId: node.mysqlId}) " +
+                    "SET e.pyExIndex = node.pyExIndex, e.courseId = node.courseId")
+                    .bindAll(Map.of("nodes", exParams))
+                    .run();
+        }
+        log.info("Neo4j Exercise 节点 MERGE 完成，共 {} 个", exercises.size());
+
+        // 3. MERGE COVERS 边：Exercise -[:COVERS]-> KnowledgePoint
+        List<Map<String, Object>> coversParams = new ArrayList<>();
+        for (Exercise ex : exercises) {
+            List<ExerciseKpRel> rels = kpRelRepository.findByExerciseId(ex.getId());
+            for (ExerciseKpRel rel : rels) {
+                Map<String, Object> e = new HashMap<>();
+                e.put("exMysqlId", ex.getId());
+                e.put("kcMysqlId", rel.getKpId());
+                coversParams.add(e);
+            }
+        }
+
+        if (!coversParams.isEmpty()) {
+            neo4jClient.query(
+                    "UNWIND $edges AS edge " +
+                    "MATCH (ex:Exercise {mysqlId: edge.exMysqlId}) " +
+                    "MATCH (kc:KnowledgePoint {mysqlId: edge.kcMysqlId}) " +
+                    "MERGE (ex)-[:COVERS]->(kc)")
+                    .bindAll(Map.of("edges", coversParams))
+                    .run();
+        }
+        log.info("Neo4j COVERS 边 MERGE 完成，共 {} 条", coversParams.size());
+
+        return Map.of(
+                "neo4jKcNodes", kps.size(),
+                "neo4jExNodes", exercises.size(),
+                "neo4jCoversEdges", coversParams.size()
         );
+    }
+
+    @Override
+    public void cleanOldNeo4jEdges() {
+        neo4jClient.query("MATCH ()-[r:RELATED_TO]->() DELETE r").run();
+        neo4jClient.query("MATCH ()-[r:PREREQUISITE_OF]->() DELETE r").run();
+        log.info("已清除 Neo4j 中旧设计的 RELATED_TO 和 PREREQUISITE_OF 边");
     }
 }
