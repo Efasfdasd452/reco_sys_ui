@@ -1,6 +1,6 @@
 # 习题推荐系统（reco_sys）
 
-基于知识图谱与学习状态的**个性化习题推荐系统**，支持学生做题、教师管理、管理员初始化数据。后端整合 MySQL（业务数据）、Neo4j（知识图谱）与独立 Python 推荐服务，前端为 React 单页应用，支持中英文与滑块验证码登录。
+基于知识图谱与学习状态的**个性化习题推荐系统**，支持学生做题、教师管理、管理员初始化数据。后端整合 MySQL（业务数据）、Neo4j（知识图谱）与独立 Python 推荐服务，前端为 React 单页应用，支持中英文、滑块验证码登录、TOTP 二步验证找回密码。
 
 ## 功能概览
 
@@ -33,7 +33,7 @@ reco_sys/
 │   │   │   ├── RecoSysApplication.java    # 启动类
 │   │   │   ├── config/                    # 安全、SPA 回退、配置绑定
 │   │   │   └── module/
-│   │   │       ├── auth/                  # 登录注册、滑块验证码
+│   │   │       ├── auth/                  # 登录注册、滑块验证码、TOTP
 │   │   │       ├── admin/                 # 管理员、数据初始化
 │   │   │       ├── course/                # 课程
 │   │   │       ├── classroom/             # 班级/课堂
@@ -48,20 +48,24 @@ reco_sys/
 │   │   │       └── statistics/            # 统计（管理员）
 │   │   └── resources/
 │   │       ├── application.properties.example  # 配置模板
-│   │       ├── application.properties          # 本地配置（需自行复制填写）
+│   │       ├── application.properties          # 本地配置（需自行复制填写，不提交 git）
 │   │       └── static/                         # 前端构建产物（npm run build 输出）
-│   └── test/                                  # 单元测试
+│   └── test/
 ├── frontend/                                  # React 前端
 │   ├── src/
 │   │   ├── App.jsx, main.jsx
 │   │   ├── api/                           # 后端 API 封装
 │   │   ├── store/                         # 登录状态（authStore）
-│   │   ├── components/                   # 布局、验证码、公式渲染等
-│   │   ├── pages/                        # 学生/教师/管理员页面
-│   │   └── i18n/                         # 中英文
-│   ├── vite.config.js                    # 构建输出到 ../src/main/resources/static，dev 代理 /api -> 8888
+│   │   ├── components/                    # 布局、验证码、公式渲染等
+│   │   ├── pages/                         # 学生/教师/管理员页面
+│   │   └── i18n/                          # 中英文
+│   ├── vite.config.js                     # 构建输出到 ../src/main/resources/static，dev 代理 /api -> 8888
 │   └── package.json
-├── sql/                                     # SQL 及数据脚本（如 inject_test_kc_states.py）
+├── docs/                                      # 设计文档（数据库、架构、UML）
+├── inject_test_case.py                        # 测试用例注入脚本（直接写 MySQL）
+├── test_accounts.txt                          # 测试账号列表（含 TOTP 密钥）
+├── TEST_CASES.md                              # 推荐系统测试用例（接口级验证）
+├── test_cases_recommendation.md               # 推荐算法测试用例说明
 ├── pom.xml
 └── README.md
 ```
@@ -95,15 +99,25 @@ jwt.expiration=86400000
 # Python 推荐服务
 recommend.service.url=http://localhost:8000
 recommend.service.api-key=YOUR_FASTAPI_API_KEY
+
+# TOTP 密钥加密（AES-256-GCM）
+# 生成方法：python -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+# 重要：此密钥不得泄露，生产环境建议改为环境变量注入
+app.totp.encryption-key=YOUR_AES_256_BASE64_KEY
 ```
 
-可选：邮件、文件上传目录、推荐数据路径（如 algebra2005）等，见 `application.properties.example`。
+可选：邮件 SMTP、文件上传目录、推荐数据路径等，见 `application.properties.example`。
+
+> **安全说明**：`application.properties` 已在 `.gitignore` 中忽略，不会提交到仓库。
+> 生产部署时建议改用环境变量：`export TOTP_ENCRYPTION_KEY="..."` 并在配置中写 `app.totp.encryption-key=${TOTP_ENCRYPTION_KEY}`
 
 ### 2. 创建数据库
 
 ```sql
 CREATE DATABASE reco_sys CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
+
+Hibernate `ddl-auto=update` 会在首次启动时自动建表。
 
 ### 3. 开发环境运行（前后端分离，两个进程）
 
@@ -156,7 +170,8 @@ cd frontend && npm run build && cd ..
 # 2. 打包
 ./mvnw clean package -DskipTests
 
-# 3. 运行
+# 3. 运行（通过环境变量传入敏感配置）
+export TOTP_ENCRYPTION_KEY="YOUR_AES_256_BASE64_KEY"
 java -jar target/reco_sys-0.0.1-SNAPSHOT.jar
 
 # 或后台
@@ -233,6 +248,7 @@ services:
       JWT_SECRET: your_jwt_secret
       RECOMMEND_SERVICE_URL: http://host.docker.internal:8000
       RECOMMEND_SERVICE_API_KEY: your_api_key
+      TOTP_ENCRYPTION_KEY: your_aes_256_base64_key   # TOTP密钥加密，不要写在镜像里
 
 volumes:
   mysql_data:
@@ -250,22 +266,54 @@ docker compose logs -f app
 
 ## API 概览
 
-| 路径前缀 | 说明 |
-|----------|------|
-| `/api/auth` | 注册、登录、邮箱验证码、重置密码 |
-| `/api/auth/captcha` | 滑块验证码（获取/校验） |
-| `/api/user` | 当前用户资料、登录记录 |
-| `/api/courses` | 课程列表、详情、选课、我的课程、课程学生 |
-| `/api/classrooms` | 班级 CRUD、加入班级、班级课程、 enroll 学生 |
-| `/api/knowledge` | 知识图谱（按课程、按用户状态） |
-| `/api/exercises` | 习题列表、详情、按课程查询 |
-| `/api/learning` | 提交答案、答题历史、已答题目 ID |
-| `/api/grade` | 待批改列表、批改提交 |
-| `/api/recommend` | 学生推荐、教师查看某学生推荐、刷新推荐 |
-| `/api/files` | 图片上传、移动端上传会话 |
-| `/api/notifications` | 通知列表、未读数量 |
-| `/api/admin` | 用户列表、数据初始化、同步/清理 Neo4j |
-| `/api/admin/statistics` | 管理员统计 |
+| 路径 | 方法 | 说明 | 认证 |
+|------|------|------|------|
+| `/api/auth/email-code` | POST | 发送邮箱验证码（需滑块 passToken） | 无 |
+| `/api/auth/register` | POST | 注册（需滑块 passToken，返回 TOTP 绑定信息） | 无 |
+| `/api/auth/login` | POST | 登录（需滑块 passToken） | 无 |
+| `/api/auth/reset-password` | POST | 邮箱验证码重置密码 | 无 |
+| `/api/auth/reset-password-totp` | POST | TOTP 验证器 App 重置密码 | 无 |
+| `/api/auth/captcha/generate` | GET | 获取滑块验证码题面 | 无 |
+| `/api/auth/captcha/verify` | POST | 验证滑块，返回 passToken（60s有效） | 无 |
+| `/api/user/profile` | GET/PUT | 当前用户资料 | JWT |
+| `/api/user/login-records` | GET | 登录历史 | JWT |
+| `/api/user/totp-setup` | GET | 查看/重新生成 TOTP 绑定二维码 | JWT |
+| `/api/courses` | GET/POST | 课程列表/创建 | JWT |
+| `/api/courses/{id}/enroll` | POST/DELETE | 加入/退出课程 | JWT |
+| `/api/classrooms` | GET/POST | 班级列表/创建 | JWT |
+| `/api/classrooms/{id}/courses` | POST/DELETE | 班级添加/移除课程 | JWT |
+| `/api/classrooms/{id}/courses/{cid}/enroll` | POST/DELETE | 批量为班级学生选课/退课 | JWT |
+| `/api/knowledge/course/{id}` | GET | 知识点列表 | JWT |
+| `/api/knowledge/graph/{courseId}` | GET | 当前学生知识图谱 | JWT |
+| `/api/knowledge/graph/{courseId}/user/{uid}` | GET | 教师查看某学生知识图谱 | JWT |
+| `/api/exercises/course/{id}` | GET | 习题列表 | JWT |
+| `/api/learning/submit` | POST | 提交答案 | JWT |
+| `/api/learning/history` | GET | 答题历史 | JWT |
+| `/api/grade/pending/course/{id}` | GET | 待批改列表 | TEACHER |
+| `/api/grade/{recordId}` | POST | 批改 | TEACHER |
+| `/api/recommend/course/{id}` | GET/POST | 获取/刷新推荐 | JWT |
+| `/api/files/upload-image` | POST | 图片上传 | JWT |
+| `/api/notifications` | GET | 通知列表 | JWT |
+| `/api/admin/**` | * | 管理员接口 | ADMIN |
+
+---
+
+## 安全机制
+
+| 机制 | 说明 |
+|------|------|
+| 滑块验证码 | 登录、注册、发验证码均需先通过滑块验证，passToken 60s 有效，单次使用 |
+| TOTP 二步验证 | 注册时自动生成，可绑定 Google Authenticator 等 App，可作为密码找回凭证 |
+| TOTP 密钥加密 | 数据库存 AES-256-GCM 密文，密钥通过配置/环境变量注入，DB 泄露不影响安全 |
+| BCrypt 密码 | 密码不可逆加密存储 |
+| JWT 无状态认证 | Token 有效期 24 小时 |
+| 异常登录检测 | 短时间内 IP 地理位置突变时推送安全通知 |
+
+---
+
+## 测试账号
+
+见 `test_accounts.txt`。包含25个测试学生账号（user001～user025）及 admin/teacher1/student1，均已加入班级1和课程1，附带 TOTP 密钥供验证器 App 手动导入。
 
 ---
 

@@ -39,8 +39,12 @@ digraph UseCaseDiagram {
 
         // ── 认证模块 ──────────────────────────
         node [fillcolor="#FFF9C4" color="#CCAA00"]
-        uc_register   [label="注册"]
-        uc_login      [label="登录"]
+        uc_register      [label="注册"]
+        uc_login         [label="登录"]
+        uc_send_code     [label="发送邮箱验证码"]
+        uc_reset_email   [label="邮箱验证码找回密码"]
+        uc_reset_totp    [label="TOTP验证器找回密码"]
+        uc_captcha       [label="滑块验证码\n（人机验证）"]
 
         // ── 学生用例 ──────────────────────────
         node [fillcolor="#E8F5E9" color="#388E3C"]
@@ -51,6 +55,7 @@ digraph UseCaseDiagram {
         uc_view_rec    [label="查看推荐习题"]
         uc_refresh_rec [label="手动刷新推荐"]
         uc_profile     [label="修改个人信息"]
+        uc_totp_setup  [label="查看/重置TOTP\n绑定信息"]
 
         // ── 教师用例 ──────────────────────────
         node [fillcolor="#FFF3E0" color="#E65100"]
@@ -83,6 +88,9 @@ digraph UseCaseDiagram {
     // 学生
     student -> uc_register
     student -> uc_login
+    student -> uc_send_code
+    student -> uc_reset_email
+    student -> uc_reset_totp
     student -> uc_browse_ex
     student -> uc_submit
     student -> uc_view_hist
@@ -90,6 +98,7 @@ digraph UseCaseDiagram {
     student -> uc_view_rec
     student -> uc_refresh_rec
     student -> uc_profile
+    student -> uc_totp_setup
 
     // 教师
     teacher -> uc_login
@@ -133,4 +142,18 @@ digraph UseCaseDiagram {
 
     // extend：问答题提交 → 进入待批改队列
     uc_grade        -> uc_submit        [label="«extend»"]
+
+    // include：注册/登录/发验证码 → 滑块验证码（人机验证）
+    uc_register     -> uc_captcha       [label="«include»"]
+    uc_login        -> uc_captcha       [label="«include»"]
+    uc_send_code    -> uc_captcha       [label="«include»"]
+
+    // include：注册 → 发送邮箱验证码
+    uc_register     -> uc_send_code     [label="«include»"]
+
+    // include：邮箱找回密码 → 发送邮箱验证码
+    uc_reset_email  -> uc_send_code     [label="«include»"]
+
+    // extend：注册成功后 → 查看TOTP绑定信息（获取QR码/密钥）
+    uc_totp_setup   -> uc_register      [label="«extend»"]
 }

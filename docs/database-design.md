@@ -43,20 +43,24 @@
 | nickname | VARCHAR(50) | | 昵称/显示名 |
 | role | VARCHAR(50) | NOT NULL, DEFAULT 'STUDENT' | 角色：STUDENT / TEACHER / ADMIN |
 | is_enabled | BIT/TINYINT | | 是否启用（默认 1） |
+| totp_secret | VARCHAR(128) | | TOTP 密钥（AES-256-GCM 加密后的 Base64 密文），注册时自动生成 |
 | created_at | DATETIME | | 创建时间 |
 | updated_at | DATETIME | | 更新时间 |
 
+> **安全说明**：`totp_secret` 字段存储的是加密密文（非明文），通过 `app.totp.encryption-key`（AES-256-GCM）加密。即使数据库泄露，攻击者也无法直接使用该字段生成 TOTP 验证码。
+
 ```sql
 CREATE TABLE sys_user (
-    id          BIGINT       PRIMARY KEY AUTO_INCREMENT,
-    username    VARCHAR(50)  NOT NULL UNIQUE,
-    password    VARCHAR(255) NOT NULL,
-    email       VARCHAR(100) UNIQUE,
-    nickname    VARCHAR(50),
-    role        VARCHAR(50)  NOT NULL DEFAULT 'STUDENT',
-    is_enabled  TINYINT(1)   DEFAULT 1,
-    created_at  DATETIME(6),
-    updated_at  DATETIME(6)
+    id           BIGINT       PRIMARY KEY AUTO_INCREMENT,
+    username     VARCHAR(50)  NOT NULL UNIQUE,
+    password     VARCHAR(255) NOT NULL,
+    email        VARCHAR(100) UNIQUE,
+    nickname     VARCHAR(50),
+    role         VARCHAR(50)  NOT NULL DEFAULT 'STUDENT',
+    is_enabled   TINYINT(1)   DEFAULT 1,
+    totp_secret  VARCHAR(128),
+    created_at   DATETIME(6),
+    updated_at   DATETIME(6)
 );
 ```
 

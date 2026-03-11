@@ -1,27 +1,40 @@
-| 用户名     | 密码        |
-| ------- | --------- |
-| user001 | pass1234  |
-| user002 | alpha789  |
-| user003 | tiger5566 |
-| user004 | test9900  |
-| user005 | blueSky88 |
-| user006 | code7777  |
-| user007 | delta4567 |
-| user008 | green123  |
-| user009 | nova2024  |
-| user010 | light999  |
-| user011 | sun88888  |
-| user012 | river321  |
-| user013 | cloud777  |
-| user014 | star9090  |
-| user015 | wind12345 |
-| user016 | stone888  |
-| user017 | pixel567  |
-| user018 | orbit2468 |
-| user019 | flame6789 |
-| user020 | shadow11  |
-| user021 | echo2222  |
-| user022 | matrix66  |
-| user023 | spark123  |
-| user024 | frost888  |
-| user025 | neon5555  |
+# 测试账号列表
+# TOTP密钥可导入 Google Authenticator / 微软 Authenticator 等App（手动输入密钥方式）
+
+## 普通账号（admin / teacher1 / student1）
+
+| 用户名     | 密码        | 角色    | TOTP密钥                           |
+| -------- | --------- | ------- | ---------------------------------- |
+| admin    | （原密码）  | ADMIN   | CMQ5OF67NFGJXKY2VJT7QTCADZ5E77NE  |
+| teacher1 | （原密码）  | TEACHER | DD7HRCGXMSV5RSRK72JF4GZET4G2M32O  |
+| student1 | （原密码）  | STUDENT | 4C3RG4EXMPD7DQRNP7CW2KUNPNASO6DB  |
+
+## 测试学生账号（user001 ~ user025，均已加入班级1 + 课程1）
+
+| 用户名     | 密码        | TOTP密钥                           |
+| ------- | --------- | ---------------------------------- |
+| user001 | pass1234  | Y64UH5GI7UZSKQDNSY53VQX2QPXBAYBZ  |
+| user002 | alpha789  | UMYEYY7V2NT4WR4HFGCKYVEOK4PBGR5T  |
+| user003 | tiger5566 | ZHAG6MSCO45PPPJOOREN34WXXHSGHBD3  |
+| user004 | test9900  | LK6PYFOU666YSLSSQ4D2QCLOP4V7RSKW  |
+| user005 | blueSky88 | 3KOBBIDBI2VXKXJN33FOOKSKPNOGOU5I  |
+| user006 | code7777  | F2WRB7F7JQGM2KVL5HQF42NJGMMPZPCI  |
+| user007 | delta4567 | EA6AQB6KQP56EIU6A5XP3MUU6LJ6AEYC  |
+| user008 | green123  | B3OUBOQY3WU4DEI4NG5AK3DT5VKRT6O3  |
+| user009 | nova2024  | YQZ7CD3JGEAVE7HNOGZGMKMJTO6ZT7IB  |
+| user010 | light999  | OQHRO5QK52HXFQOBZKNUWGMV4EKT6YML  |
+| user011 | sun88888  | WI74Y2JHZDP66I7ZCI73P2YZUHIJKKI2  |
+| user012 | river321  | 5V45VK2MBW4V2KJVKEZ45Z5MEUN43U4R  |
+| user013 | cloud777  | IOD2I4ALP33T4GZGMX3OM2NWXOIL3DUZ  |
+| user014 | star9090  | SM56HDFHFVO3M4XEKREJU3GBX5PM4URF  |
+| user015 | wind12345 | XUSTORBVVW6T7KKKU57FMZUWNH2FDNXN  |
+| user016 | stone888  | QTYXMGHHQ75EEDECFT3A3VYZWFAY6ZZD  |
+| user017 | pixel567  | DNLE77JJQIO7WXXIE4EDBNNXMDIN6UKK  |
+| user018 | orbit2468 | 7CUNBSVDRGTPAFO43IJWUGUX2NQAPPDM  |
+| user019 | flame6789 | HPSJLDSBUAANV5OXSYFDMORAENFWNPO5  |
+| user020 | shadow11  | V7ELDE26OFO24VR6SL3YEMWVA2XJVTLC  |
+| user021 | echo2222  | ECML5YVIZSFIA2XUNCJKSEOF35Y3TRJK  |
+| user022 | matrix66  | JYAQLDCM23KO5NDSQZQZBG7LNATHBSCW  |
+| user023 | spark123  | INZN5IWRMIDXZRFHIEDMYXH4DWLHCEZR  |
+| user024 | frost888  | FLGKTXJVQ2HUGNIYJ73N7LZZ3EBUHLAJ  |
+| user025 | neon5555  | KFFGWYRDBJVWDS32IYXUOO7BNAXP26LZ  |

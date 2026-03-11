@@ -8,6 +8,7 @@ import org.reco.reco_sys.common.util.IpUtil;
 import org.reco.reco_sys.common.util.JwtUtil;
 import org.reco.reco_sys.module.auth.dto.*;
 import org.reco.reco_sys.module.auth.service.AuthService;
+import org.reco.reco_sys.module.auth.service.TotpService;
 import org.reco.reco_sys.module.notification.entity.Notification;
 import org.reco.reco_sys.module.notification.service.NotificationService;
 import org.reco.reco_sys.module.user.entity.EmailVerification;
@@ -39,6 +40,8 @@ public class AuthServiceImpl implements AuthService {
     private final JavaMailSender mailSender;
     private final NotificationService notificationService;
     private final IpUtil ipUtil;
+    private final TotpService totpService;
+    private final TotpEncryptionUtil totpEnc;
 
     @Value("${spring.mail.username}")
     private String mailFrom;
@@ -62,18 +65,63 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public void register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new BusinessException(ResultCode.BAD_REQUEST, "用户名已存在");
         }
         verifyEmailCode(request.getEmail(), request.getEmailCode(), EmailVerification.Type.REGISTER);
+        String secret = totpService.generateSecret();
         SysUser user = new SysUser();
         user.setUsername(request.getUsername());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setEmail(request.getEmail());
         user.setNickname(request.getNickname() != null ? request.getNickname() : request.getUsername());
         user.setRole(SysUser.Role.STUDENT);
+        user.setTotpSecret(totpEnc.encrypt(secret));   // 加密后存库
         userRepository.save(user);
+        return new RegisterResponse(secret, totpService.buildQrUri(secret, request.getUsername()));
+    }
+
+    @Override
+    @Transactional
+    public void resetPasswordByTotp(ResetByTotpRequest request) {
+        SysUser user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
+        if (user.getTotpSecret() == null) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "该账号未绑定验证器App");
+        }
+        String plainSecret = totpEnc.decrypt(user.getTotpSecret());  // 解密后验证
+        if (!totpService.verifyCode(plainSecret, request.getTotpCode())) {
+            throw new BusinessException(ResultCode.BAD_REQUEST, "验证码错误或已过期");
+        }
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+    }
+
+    @Override
+    public RegisterResponse getTotpSetup(Long userId) {
+        SysUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
+        if (user.getTotpSecret() == null) {
+            // 历史账号没有密钥，现在生成一个
+            String secret = totpService.generateSecret();
+            user.setTotpSecret(totpEnc.encrypt(secret));  // 加密后存库
+            userRepository.save(user);
+        }
+        String plainSecret = totpEnc.decrypt(user.getTotpSecret());  // 解密后返回前端
+        return new RegisterResponse(plainSecret,
+                totpService.buildQrUri(plainSecret, user.getUsername()));
+    }
+
+    @Override
+    @Transactional
+    public RegisterResponse resetTotp(Long userId) {
+        SysUser user = userRepository.findById(userId)
+                .orElseThrow(() -> new BusinessException(ResultCode.USER_NOT_FOUND));
+        String secret = totpService.generateSecret();
+        user.setTotpSecret(totpEnc.encrypt(secret));
+        userRepository.save(user);
+        return new RegisterResponse(secret, totpService.buildQrUri(secret, user.getUsername()));
     }
 
     @Override

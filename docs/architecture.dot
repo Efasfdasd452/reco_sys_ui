@@ -52,9 +52,10 @@ digraph Architecture {
 
         node [shape=box style="filled,rounded" fillcolor="#F8BBD0" color="#AD1457" penwidth=1.5]
 
-        gw_jwt    [label="JWT Filter\n（Token 校验）"]
-        gw_rbac   [label="RBAC\n（角色权限控制）"]
-        gw_cors   [label="CORS\n（跨域配置）"]
+        gw_jwt      [label="JWT Filter\n（Token 校验）"]
+        gw_rbac     [label="RBAC\n（角色权限控制）"]
+        gw_cors     [label="CORS\n（跨域配置）"]
+        gw_captcha  [label="滑块验证码服务\n（内存 passToken，60s 单次）"]
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -71,8 +72,9 @@ digraph Architecture {
 
         node [shape=box style="filled,rounded" fillcolor="#CE93D8" color="#4A148C" penwidth=1.5]
 
-        be_auth    [label="AuthController\n注册/登录/Token"]
-        be_user    [label="UserController\n用户信息管理"]
+        be_auth    [label="AuthController\n注册/登录/验证码/TOTP找回密码"]
+        be_user    [label="UserController\n用户信息管理/TOTP绑定查看"]
+        be_totp    [label="TotpService\nTotpEncryptionUtil\n（TOTP生成/验证 + AES-256-GCM加密）"]
         be_course  [label="CourseController\n课程管理"]
         be_know    [label="KnowledgeController\n知识图谱 CRUD"]
         be_ex      [label="ExerciseController\n习题管理"]
@@ -116,7 +118,8 @@ digraph Architecture {
 
         node [shape=box style="filled,rounded" penwidth=1.5]
 
-        ext_py [label="Python FastAPI :8000\nKG4Ex 推荐算法服务\n(TransE 知识图谱嵌入)" fillcolor="#FFE082" color="#F57F17"]
+        ext_py   [label="Python FastAPI :8000\nKG4Ex 推荐算法服务\n(TransE 知识图谱嵌入)" fillcolor="#FFE082" color="#F57F17"]
+        ext_smtp [label="SMTP 邮件服务\n（QQ Mail / smtp.qq.com:587）\n邮箱验证码发送" fillcolor="#FFD54F" color="#F57F17" shape=box style="filled,rounded"]
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -137,8 +140,12 @@ digraph Architecture {
     edge [color="#AD1457" penwidth=1.5 label="" arrowhead=vee]
     gw_cors -> gw_jwt -> gw_rbac
 
+    // 滑块验证码服务被认证接口调用
+    edge [color="#AD1457" penwidth=1.2 label="验证 passToken" style=dashed]
+    gw_captcha -> be_auth
+
     // 安全层 → 后端控制器
-    edge [color="#6A1B9A" penwidth=1.5 label=""]
+    edge [color="#6A1B9A" penwidth=1.5 label="" style=solid]
     gw_rbac -> be_auth
     gw_rbac -> be_user
     gw_rbac -> be_course
@@ -174,4 +181,13 @@ digraph Architecture {
     // 后端 → Python 推荐服务
     edge [color="#F57F17" penwidth=2 label="HTTP POST\nX-API-Key" style=dashed]
     be_rec -> ext_py
+
+    // 后端 → SMTP 邮件服务
+    edge [color="#F9A825" penwidth=1.5 label="JavaMailSender\nSMTP/TLS" style=dashed]
+    be_auth -> ext_smtp
+
+    // 后端 Auth → TotpService
+    edge [color="#6A1B9A" penwidth=1.2 label="TOTP生成/验证\nAES-GCM加解密" style=dashed]
+    be_auth -> be_totp
+    be_user -> be_totp
 }

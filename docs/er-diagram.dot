@@ -29,6 +29,7 @@ digraph ER {
         <TR><TD ALIGN="LEFT">email</TD><TD ALIGN="LEFT">VARCHAR(100)</TD><TD ALIGN="LEFT">邮箱</TD></TR>
         <TR><TD ALIGN="LEFT">role</TD><TD ALIGN="LEFT">VARCHAR(50)</TD><TD ALIGN="LEFT">STUDENT/TEACHER/ADMIN</TD></TR>
         <TR><TD ALIGN="LEFT">is_enabled</TD><TD ALIGN="LEFT">TINYINT</TD><TD ALIGN="LEFT">是否启用</TD></TR>
+        <TR><TD ALIGN="LEFT">totp_secret</TD><TD ALIGN="LEFT">VARCHAR(128)</TD><TD ALIGN="LEFT">TOTP密钥（AES-256-GCM密文）</TD></TR>
         <TR><TD ALIGN="LEFT">created_at</TD><TD ALIGN="LEFT">DATETIME</TD><TD ALIGN="LEFT">创建时间</TD></TR>
         </TABLE>
     >]

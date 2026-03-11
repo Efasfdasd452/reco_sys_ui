@@ -47,6 +47,54 @@ digraph Robustness_Student {
     }
 
     // ════════════════════════════════════════════════════════════
+    // UC0  用户注册 + TOTP 绑定
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc0 {
+        label    = "UC0  用户注册 + TOTP 绑定"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#CCAA00"
+        penwidth = 2
+        fontsize = 13
+
+        u0_actor [label="学生" shape=plaintext]
+
+        // Boundary
+        u0_b1 [label="<<Boundary>>\n注册页面\n（滑块验证码 + 邮箱验证码）"  shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u0_b2 [label="<<Boundary>>\nPOST /api/auth/email-code\n（captchaPassToken）" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u0_b3 [label="<<Boundary>>\nPOST /api/auth/register\n（captchaPassToken + emailCode）" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u0_b4 [label="<<Boundary>>\nTOTP绑定弹窗\n（扫码 / 手动输入密钥）" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        // Control
+        u0_c1 [label="<<Control>>\nCaptchaService\n验证滑块 → 发放 passToken" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u0_c2 [label="<<Control>>\nAuthService\n发送邮箱验证码"              shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u0_c3 [label="<<Control>>\nAuthService\n注册用户 + 生成 TOTP"        shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u0_c4 [label="<<Control>>\nTotpService\n生成 Base32 密钥\n构造 otpauth:// URI" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u0_c5 [label="<<Control>>\nTotpEncryptionUtil\nAES-256-GCM 加密密钥"  shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        // Entity
+        u0_e1 [label="<<Entity>>\nemail_verification" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u0_e2 [label="<<Entity>>\nsys_user\n(totp_secret=密文)"  shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u0_actor -> u0_b1   [label="填写注册信息\n完成滑块验证"]
+    u0_b1    -> u0_c1   [label="滑块验证请求"]
+    u0_c1    -> u0_b1   [label="返回 passToken"]
+    u0_b1    -> u0_b2   [label="点击「发送验证码」\n携带 passToken"]
+    u0_b2    -> u0_c2
+    u0_c2    -> u0_e1   [label="INSERT 验证码记录\n发送邮件"]
+    u0_c2    -> u0_b1   [label="发送成功"]
+    u0_b1    -> u0_b3   [label="提交注册表单\n（含邮箱验证码）"]
+    u0_b3    -> u0_c3
+    u0_c3    -> u0_e1   [label="校验邮箱验证码"]
+    u0_c3    -> u0_c4   [label="验证通过\n生成 TOTP"]
+    u0_c4    -> u0_c5   [label="明文密钥"]
+    u0_c5    -> u0_e2   [label="INSERT 用户\ntotp_secret=AES密文"]
+    u0_c4    -> u0_b3   [label="返回 {totpSecret, totpQrUri}"]
+    u0_b3    -> u0_b4   [label="弹出 TOTP 绑定弹窗"]
+    u0_b4    -> u0_actor [label="用户扫码/手动录入\n绑定验证器 App"]
+
+    // ════════════════════════════════════════════════════════════
     // UC1  用户登录
     // ════════════════════════════════════════════════════════════
     subgraph cluster_uc1 {
@@ -61,11 +109,12 @@ digraph Robustness_Student {
         u1_actor [label="学生 / 教师\n/ 管理员" shape=plaintext]
 
         // Boundary
-        u1_b1 [label="<<Boundary>>\n登录页面"           shape=box     style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
-        u1_b2 [label="<<Boundary>>\nPOST /api/auth/login" shape=box   style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u1_b1 [label="<<Boundary>>\n登录页面\n（含滑块验证码）"       shape=box     style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u1_b2 [label="<<Boundary>>\nPOST /api/auth/login\n（captchaPassToken）" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
 
         // Control
-        u1_c1 [label="<<Control>>\nAuthService\n验证用户名/密码"  shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u1_c0 [label="<<Control>>\nCaptchaService\n验证滑块 → 发放 passToken" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u1_c1 [label="<<Control>>\nAuthService\n校验 passToken\n验证用户名/密码"  shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
         u1_c2 [label="<<Control>>\nJwtService\n生成 JWT Token"    shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
 
         // Entity
@@ -73,8 +122,10 @@ digraph Robustness_Student {
         u1_e2 [label="<<Entity>>\nJWT Token" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
     }
 
-    u1_actor -> u1_b1  [label="输入账号密码"]
-    u1_b1    -> u1_b2  [label="提交"]
+    u1_actor -> u1_b1  [label="输入账号密码\n完成滑块验证"]
+    u1_b1    -> u1_c0  [label="滑块验证请求"]
+    u1_c0    -> u1_b1  [label="passToken"]
+    u1_b1    -> u1_b2  [label="提交（含 passToken）"]
     u1_b2    -> u1_c1
     u1_c1    -> u1_e1  [label="查询"]
     u1_e1    -> u1_c1  [label="返回用户记录"]
@@ -231,4 +282,43 @@ digraph Robustness_Student {
     u5_e5    -> u5_c1
     u5_c1    -> u5_b1  [label="返回推荐习题列表"]
     u5_b1    -> u5_actor [label="展示推荐结果\n(含知识点标签/难度)"]
+
+    // ════════════════════════════════════════════════════════════
+    // UC6  TOTP 验证器找回密码
+    // ════════════════════════════════════════════════════════════
+    subgraph cluster_uc6 {
+        label    = "UC6  TOTP 验证器找回密码"
+        style    = filled
+        bgcolor  = "#F3F3F3"
+        color    = "#CCAA00"
+        penwidth = 2
+        fontsize = 13
+
+        u6_actor [label="学生 / 教师" shape=plaintext]
+
+        // Boundary
+        u6_b1 [label="<<Boundary>>\n找回密码页\n（选择「验证器App找回」）"         shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+        u6_b2 [label="<<Boundary>>\nPOST /api/auth/reset-password-totp\n{username, totpCode, newPassword}" shape=box style="filled,bold" fillcolor="#BBDEFB" color="#1565C0"]
+
+        // Control
+        u6_c1 [label="<<Control>>\nAuthService\n查找用户 + 解密 TOTP 密钥" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u6_c2 [label="<<Control>>\nTotpEncryptionUtil\nAES-256-GCM 解密 totp_secret" shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+        u6_c3 [label="<<Control>>\nTotpService\nHMAC-SHA1 验证 6位码\n（±1窗口容错）"  shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
+
+        // Entity
+        u6_e1 [label="<<Entity>>\nsys_user\n(totp_secret=AES密文\npassword=BCrypt)" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+    }
+
+    u6_actor -> u6_b1   [label="输入用户名\n打开验证器App"]
+    u6_b1    -> u6_b2   [label="提交用户名\n+ 6位TOTP码\n+ 新密码"]
+    u6_b2    -> u6_c1
+    u6_c1    -> u6_e1   [label="SELECT WHERE username=?"]
+    u6_e1    -> u6_c1   [label="返回用户记录\n(含加密totp_secret)"]
+    u6_c1    -> u6_c2   [label="传入密文"]
+    u6_c2    -> u6_c3   [label="明文密钥"]
+    u6_c3    -> u6_c1   [label="验证结果\n(true/false)"]
+    u6_c1    -> u6_e1   [label="UPDATE password=BCrypt(新密码)"]
+    u6_c1    -> u6_b2   [label="重置成功"]
+    u6_b2    -> u6_b1   [label="返回成功"]
+    u6_b1    -> u6_actor [label="提示密码已重置\n跳转登录页"]
 }

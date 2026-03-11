@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Card, Form, Input, Button, Descriptions, Divider, Tag, message, Spin, Tabs, Table, Badge } from 'antd'
+import { Card, Form, Input, Button, Descriptions, Divider, Tag, message, Spin, Tabs, Table, Badge, QRCode, Typography, Modal, Space } from 'antd'
+import { SafetyCertificateOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api'
 import { useAuth } from '../../store/authStore'
@@ -18,6 +19,9 @@ export default function ProfilePage() {
   const [loginTotal, setLoginTotal] = useState(0)
   const [loginPage, setLoginPage] = useState(0)
   const [loginLoading, setLoginLoading] = useState(false)
+  const [totpInfo, setTotpInfo] = useState(null)
+  const [totpLoading, setTotpLoading] = useState(false)
+  const [totpResetLoading, setTotpResetLoading] = useState(false)
 
   useEffect(() => {
     api.user.profile()
@@ -27,6 +31,33 @@ export default function ProfilePage() {
       })
       .finally(() => setLoading(false))
   }, [])
+
+  const loadTotpSetup = () => {
+    setTotpLoading(true)
+    api.user.getTotpSetup()
+      .then(setTotpInfo)
+      .finally(() => setTotpLoading(false))
+  }
+
+  const handleResetTotp = () => {
+    Modal.confirm({
+      title: '重新生成 TOTP 密钥',
+      content: '重新生成后，旧密钥立即失效，需在验证器 App 中重新添加账号。确定继续吗？',
+      okText: '确定重新生成',
+      okButtonProps: { danger: true },
+      cancelText: '取消',
+      onOk: async () => {
+        setTotpResetLoading(true)
+        try {
+          const data = await api.user.resetTotp()
+          setTotpInfo(data)
+          message.success('已生成新密钥，请重新绑定验证器 App')
+        } finally {
+          setTotpResetLoading(false)
+        }
+      },
+    })
+  }
 
   const loadLoginRecords = (p = 0) => {
     setLoginLoading(true)
@@ -165,8 +196,69 @@ export default function ProfilePage() {
               />
             ),
           },
+          {
+            key: 'totp',
+            label: <span><SafetyCertificateOutlined /> 两步验证</span>,
+            children: (
+              <Card>
+                <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+                  两步验证（TOTP）用于在忘记密码时通过验证器 App（如 Google Authenticator、Microsoft Authenticator）验证身份并重置密码。
+                </Typography.Paragraph>
+                {!totpInfo ? (
+                  <Button type="primary" loading={totpLoading} onClick={loadTotpSetup}>
+                    查看绑定信息 / 二维码
+                  </Button>
+                ) : (
+                  <Tabs
+                    items={[
+                      {
+                        key: 'qr',
+                        label: '扫描二维码',
+                        children: (
+                          <Space direction="vertical" align="center" style={{ width: '100%', paddingTop: 8 }}>
+                            <QRCode value={totpInfo.totpQrUri} size={200} />
+                            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                              用验证器 App 扫描上方二维码完成绑定
+                            </Typography.Text>
+                          </Space>
+                        ),
+                      },
+                      {
+                        key: 'manual',
+                        label: '手动输入',
+                        children: (
+                          <Descriptions column={1} bordered size="small" style={{ maxWidth: 480 }}>
+                            <Descriptions.Item label="账号">{profile?.username}</Descriptions.Item>
+                            <Descriptions.Item label="密钥（Key）">
+                              <Typography.Text copyable code style={{ wordBreak: 'break-all' }}>
+                                {totpInfo.totpSecret}
+                              </Typography.Text>
+                            </Descriptions.Item>
+                            <Descriptions.Item label="类型">基于时间（TOTP）</Descriptions.Item>
+                            <Descriptions.Item label="位数">6</Descriptions.Item>
+                            <Descriptions.Item label="时间步长">30 秒</Descriptions.Item>
+                            <Descriptions.Item label="算法">SHA1</Descriptions.Item>
+                            <Descriptions.Item label="颁发者">reco_sys</Descriptions.Item>
+                          </Descriptions>
+                        ),
+                      },
+                    ]}
+                  />
+                )}
+                <Divider />
+                <Typography.Paragraph type="warning" style={{ marginBottom: 8 }}>
+                  <strong>重新生成密钥</strong>：若验证器 App 丢失或需要换设备，可重新生成密钥。旧密钥立即失效。
+                </Typography.Paragraph>
+                <Button danger loading={totpResetLoading} onClick={handleResetTotp}>
+                  重新生成密钥
+                </Button>
+              </Card>
+            ),
+          },
         ]}
-        onChange={key => { if (key === 'login-records' && loginRecords.length === 0) loadLoginRecords(0) }}
+        onChange={key => {
+          if (key === 'login-records' && loginRecords.length === 0) loadLoginRecords(0)
+        }}
       />
     </div>
   )

@@ -31,11 +31,16 @@ public class AuthController {
     }
 
     @PostMapping("/register")
-    public Result<Void> register(@Valid @RequestBody RegisterRequest request) {
+    public Result<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
         if (!captchaService.verifyPassToken(request.getCaptchaPassToken())) {
             throw new BusinessException(ResultCode.PARAM_ERROR, "滑块验证已过期，请重新验证");
         }
-        authService.register(request);
+        return Result.success(authService.register(request));
+    }
+
+    @PostMapping("/reset-password-totp")
+    public Result<Void> resetPasswordByTotp(@Valid @RequestBody ResetByTotpRequest request) {
+        authService.resetPasswordByTotp(request);
         return Result.success(null);
     }
 

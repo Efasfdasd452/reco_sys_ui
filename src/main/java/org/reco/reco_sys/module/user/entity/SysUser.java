@@ -35,6 +35,10 @@ public class SysUser {
     @Column(name = "is_enabled")
     private Boolean isEnabled = true;
 
+    /** TOTP 密钥（Base32），注册时生成，用于验证器App绑定和找回密码 */
+    @Column(name = "totp_secret", length = 128)
+    private String totpSecret;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

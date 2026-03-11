@@ -7,6 +7,7 @@ export const api = {
     register: (data) => request.post('/auth/register', data),
     login: (data) => request.post('/auth/login', data),
     resetPassword: (data) => request.post('/auth/reset-password', data),
+    resetPasswordByTotp: (data) => request.post('/auth/reset-password-totp', data),
     captchaGenerate: () => request.get('/auth/captcha/generate'),
     captchaVerify: (token, sliderX, track, totalTime) =>
       request.post('/auth/captcha/verify', { token, sliderX, track, totalTime }),
@@ -17,6 +18,8 @@ export const api = {
     updateProfile: (data) => request.put('/user/profile', data),
     loginRecords: (page = 0, size = 10) =>
       request.get('/user/login-records', { params: { page, size } }),
+    getTotpSetup: () => request.get('/user/totp-setup'),
+    resetTotp: () => request.post('/user/totp-reset'),
   },
 
   course: {
