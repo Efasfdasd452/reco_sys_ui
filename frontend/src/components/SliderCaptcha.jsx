@@ -25,6 +25,8 @@ export default function SliderCaptcha({ onSuccess, onReset }) {
   const dragging       = useRef(false)
   const startMouseX    = useRef(0)
   const startDragX     = useRef(0)
+  const trackRef       = useRef([])    // 轨迹点 [{x, y, t}]
+  const startTimeRef   = useRef(0)     // 按下时间戳
 
   // 图片尺寸（与后端保持一致）
   const IMG_W    = captcha?.imageWidth  ?? 300
@@ -115,9 +117,11 @@ export default function SliderCaptcha({ onSuccess, onReset }) {
   // -------------------------------------------------------------------------
   const onThumbDown = (e) => {
     if (status !== 'idle') return
-    dragging.current  = true
+    dragging.current    = true
     startMouseX.current = e.clientX ?? e.touches?.[0].clientX
     startDragX.current  = dragX
+    startTimeRef.current = Date.now()
+    trackRef.current    = [{ x: e.clientX, y: e.clientY, t: startTimeRef.current }]
     setStatus('dragging')
     e.preventDefault()
   }
@@ -127,15 +131,20 @@ export default function SliderCaptcha({ onSuccess, onReset }) {
     dragging.current    = true
     startMouseX.current = e.touches[0].clientX
     startDragX.current  = dragX
+    startTimeRef.current = Date.now()
+    trackRef.current    = [{ x: e.touches[0].clientX, y: e.touches[0].clientY, t: startTimeRef.current }]
     setStatus('dragging')
   }
 
   useEffect(() => {
     const onMove = (e) => {
       if (!dragging.current) return
-      const cx    = e.touches ? e.touches[0].clientX : e.clientX
+      const cx = e.touches ? e.touches[0].clientX : e.clientX
+      const cy = e.touches ? e.touches[0].clientY : e.clientY
       const delta = cx - startMouseX.current
       setDragX(Math.max(0, Math.min(MAX_DRAG, startDragX.current + delta)))
+      // 采集轨迹点
+      trackRef.current.push({ x: cx, y: cy, t: Date.now() })
     }
 
     const onUp = async () => {
@@ -143,12 +152,15 @@ export default function SliderCaptcha({ onSuccess, onReset }) {
       dragging.current = false
       if (status === 'success' || !captcha) return
 
-      const sliderX = Math.round(dragX)
+      const sliderX   = Math.round(dragX)
+      const totalTime = Date.now() - startTimeRef.current
+      const track     = trackRef.current
       try {
-        const res  = await fetch(
-          `/api/auth/captcha/verify?token=${captcha.token}&sliderX=${sliderX}`,
-          { method: 'POST' }
-        )
+        const res  = await fetch('/api/auth/captcha/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: captcha.token, sliderX, track, totalTime }),
+        })
         const json = await res.json()
         if (json.data?.passed) {
           setStatus('success')

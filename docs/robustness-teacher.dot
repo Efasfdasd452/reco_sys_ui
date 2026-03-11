@@ -54,24 +54,24 @@ digraph Robustness_Teacher {
         u6_c3 [label="<<Control>>\nGradeService\n更新批改结果"                     shape=ellipse style=filled fillcolor="#FFE0B2" color="#E65100"]
 
         // Entity
-        u6_e1 [label="<<Entity>>\nanswer_record\ngrade_status=PENDING" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
+        u6_e1 [label="<<Entity>>\nanswer_record\nstatus=SUBMITTED" shape=cylinder style=filled fillcolor="#C8E6C9" color="#1B5E20"]
     }
 
     u6_student -> u6_b1   [label="提交问答题"]
     u6_b1      -> u6_c1
-    u6_c1      -> u6_e1   [label="INSERT\ngrade_type=MANUAL\ngrade_status=PENDING"]
+    u6_c1      -> u6_e1   [label="INSERT\nstatus=SUBMITTED"]
     u6_c1      -> u6_b1   [label="提示：等待批改"]
     u6_b1      -> u6_student [label="展示待批改提示"]
 
     u6_teacher -> u6_b2   [label="查看待批改列表"]
     u6_b2      -> u6_c2
-    u6_c2      -> u6_e1   [label="SELECT WHERE\ngrade_status=PENDING"]
+    u6_c2      -> u6_e1   [label="SELECT WHERE\nstatus=SUBMITTED"]
     u6_e1      -> u6_c2   [label="待批改记录列表"]
     u6_c2      -> u6_b2   [label="返回列表"]
 
     u6_teacher -> u6_b3   [label="填写分数+评语\n提交批改"]
     u6_b3      -> u6_c3
-    u6_c3      -> u6_e1   [label="UPDATE score\nteacher_comment\ngrade_status=GRADED\ngraded_by=teacherId"]
+    u6_c3      -> u6_e1   [label="UPDATE score\nteacher_comment\nstatus=GRADED\ngraded_by, graded_at"]
     u6_c3      -> u6_b3   [label="批改成功"]
     u6_b3      -> u6_teacher [label="提示批改完成"]
 

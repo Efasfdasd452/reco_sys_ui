@@ -20,7 +20,7 @@ digraph Seq3_Recommend {
     // ── 参与者头部 ──────────────────────────────────────
     { rank=same
         P_fe    [shape=box style="filled,rounded" fillcolor="#BBDEFB" label="前端\n(React)"]
-        P_rec   [shape=box style="filled,rounded" fillcolor="#CE93D8" label="RecommendController"]
+        P_rec   [shape=box style="filled,rounded" fillcolor="#CE93D8" label="RecommendationController"]
         P_mysql [shape=cylinder style=filled fillcolor="#A5D6A7" label="MySQL"]
         P_neo4j [shape=cylinder style=filled fillcolor="#C8E6C9" label="Neo4j"]
         P_py    [shape=box style="filled,rounded" fillcolor="#FFE082" label="Python FastAPI\n:8000"]
@@ -58,12 +58,12 @@ digraph Seq3_Recommend {
     // ── 消息 ────────────────────────────────────────────
     edge [style=solid arrowhead=vee color="#333333" weight=1]
 
-    fe0  -> re0   [label="① POST /api/recommendations/refresh\n  trigger_type=MANUAL"]
+    fe0  -> re0   [label="① POST /api/recommend/course/{courseId}/refresh\n  手动刷新推荐"]
 
-    // 读取学生状态数据
-    re1  -> my1   [label="② SELECT mastery_level, appear_prob\n  FROM user_kc_state WHERE user_id=?"]
-    my2  -> re2   [label="③ 返回各知识点 mlkc / pkc"]
-    re3  -> my3   [label="④ SELECT forget_rate\n  FROM user_exercise_forget WHERE user_id=?"]
+    // 读取学生状态数据（与实体 UserKcState / UserExerciseForget 一致）
+    re1  -> my1   [label="② SELECT mastery_level, correct_count, total_count\n  FROM user_kc_state WHERE user_id=?"]
+    my2  -> re2   [label="③ 返回各知识点 mlkc（及 pkc 由业务计算）"]
+    re3  -> my3   [label="④ SELECT forget_prob\n  FROM user_exercise_forget WHERE user_id=?"]
     my4  -> re4   [label="⑤ 返回各习题 exfr"]
 
     // 补充查询知识图谱（获取活跃知识点）
@@ -74,7 +74,7 @@ digraph Seq3_Recommend {
     re7  -> py7   [label="⑧ POST /api/v1/recommend\n  {uid, mlkc:{kc0:0.54,...},\n   pkc:{kc0:0.30,...},\n   exfr:{ex0:0.10,...}, top_n:10}\n  X-API-Key: ***"]
     py8  -> re8   [label="⑨ 返回推荐结果\n  [{exercise_id, exercise_name, score, kcs}]"]
 
-    // 保存推荐记录并返回
-    re9  -> my9   [label="⑩ INSERT recommendation_record\n  INSERT rec_exercise_item (批量)"]
+    // 保存推荐记录并返回（recommendation_record 含 course_id；rec_exercise_item 含 rec_id）
+    re9  -> my9   [label="⑩ INSERT recommendation_record\n  INSERT rec_exercise_item(rec_id, ...) 批量"]
     re10 -> fe10  [label="⑪ 返回推荐习题详情列表\n  （含题目内容、难度、知识点标签）"]
 }

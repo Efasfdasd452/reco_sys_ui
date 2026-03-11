@@ -3,13 +3,13 @@ import request from './request'
 // ===== Auth =====
 export const api = {
   auth: {
-    sendCode: (email, type) => request.post('/auth/email-code', { email, type }),
+    sendCode: (email, type, captchaPassToken) => request.post('/auth/email-code', { email, type, captchaPassToken }),
     register: (data) => request.post('/auth/register', data),
     login: (data) => request.post('/auth/login', data),
     resetPassword: (data) => request.post('/auth/reset-password', data),
     captchaGenerate: () => request.get('/auth/captcha/generate'),
-    captchaVerify: (token, sliderX) =>
-      request.post('/auth/captcha/verify', null, { params: { token, sliderX } }),
+    captchaVerify: (token, sliderX, track, totalTime) =>
+      request.post('/auth/captcha/verify', { token, sliderX, track, totalTime }),
   },
 
   user: {
@@ -36,8 +36,10 @@ export const api = {
     delete: (id) => request.delete(`/knowledge/${id}`),
     addRelation: (fromId, toId, type) =>
       request.post('/knowledge/relation', null, { params: { fromId, toId, type } }),
-    myGraph: (courseId) => request.get(`/knowledge/graph/${courseId}`),
-    userGraph: (courseId, userId) => request.get(`/knowledge/graph/${courseId}/user/${userId}`),
+    myGraph: (courseId, includePrerequisites = false, maxRelatedNodes = 25) =>
+      request.get(`/knowledge/graph/${courseId}`, { params: { includePrerequisites, maxRelatedNodes } }),
+    userGraph: (courseId, userId, includePrerequisites = false, maxRelatedNodes = 25) =>
+      request.get(`/knowledge/graph/${courseId}/user/${userId}`, { params: { includePrerequisites, maxRelatedNodes } }),
   },
 
   exercise: {

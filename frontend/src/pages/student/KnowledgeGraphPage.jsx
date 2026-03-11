@@ -9,12 +9,14 @@ const NODE_TYPES = [
   { key: 'student',  label: '学生中心', color: '#faad14' },
   { key: 'kc',       label: '知识点',   color: '#1677ff' },
   { key: 'exercise', label: '习题',     color: '#722ed1' },
+  { key: 'prereq',   label: '关联知识点', color: '#8c8c8c' },
 ]
 const EDGE_TYPES = [
   { key: 'mlkc',   label: '掌握度 mlkc', color: '#1677ff', dash: false },
   { key: 'pkc',    label: '出现率 pkc',  color: '#fa8c16', dash: true  },
   { key: 'exfr',   label: '遗忘率 exfr', color: '#722ed1', dash: false },
   { key: 'covers', label: '覆盖关系',    color: '#ccc',    dash: false },
+  { key: 'prereq', label: '关联关系',    color: '#8c8c8c', dash: true  },
 ]
 
 // ─────────────────────────────────────────────────────────────────
@@ -28,8 +30,10 @@ export default function KnowledgeGraphPage() {
   const [loading,        setLoading]        = useState(false)
   const [empty,          setEmpty]          = useState(false)
   const [graphData,      setGraphData]      = useState(null)
-  const [shownNodeTypes, setShownNodeTypes] = useState(new Set(['student', 'kc', 'exercise']))
-  const [shownEdgeTypes, setShownEdgeTypes] = useState(new Set(['mlkc', 'pkc', 'exfr', 'covers']))
+  const [shownNodeTypes, setShownNodeTypes] = useState(new Set(['student', 'kc', 'exercise', 'prereq']))
+  const [shownEdgeTypes, setShownEdgeTypes] = useState(new Set(['mlkc', 'pkc', 'exfr', 'covers', 'prereq']))
+  const [includePrerequisites, setIncludePrerequisites] = useState(false)
+  const [unlimitedRelated, setUnlimitedRelated] = useState(false)
   const [fullscreen,     setFullscreen]     = useState(false)
   // 空数组 = 显示全部；非空 = 只显示选中的
   const [selectedKcIds,  setSelectedKcIds]  = useState([])
@@ -42,18 +46,23 @@ export default function KnowledgeGraphPage() {
     })
   }, [])
 
-  useEffect(() => { if (courseId) loadGraph() }, [courseId])
+  useEffect(() => { if (courseId) loadGraph() }, [courseId, includePrerequisites, unlimitedRelated])
 
   useEffect(() => {
-    if (graphData) renderGraph(graphData, shownNodeTypes, shownEdgeTypes, fullscreen, selectedKcIds, selectedExIds)
+    if (graphData) {
+      renderGraph(graphData, shownNodeTypes, shownEdgeTypes, fullscreen, selectedKcIds, selectedExIds)
+    } else {
+      if (graphRef.current) { graphRef.current.destroy(); graphRef.current = null }
+    }
   }, [graphData, shownNodeTypes, shownEdgeTypes, fullscreen, selectedKcIds, selectedExIds])
 
   const loadGraph = async () => {
     setLoading(true); setEmpty(false)
+    setGraphData(null)   // 先清空旧图，确保后续 setGraphData(newData) 必然触发重渲染
     try {
-      const data = await api.knowledge.myGraph(courseId)
+      const data = await api.knowledge.myGraph(courseId, includePrerequisites, unlimitedRelated ? 0 : 25)
       const hasRealData = data?.nodes?.some(n => n.nodeType !== 'student')
-      if (!hasRealData) { setEmpty(true); setGraphData(null); return }
+      if (!hasRealData) { setEmpty(true); return }
       setSelectedKcIds([])
       setSelectedExIds([])
       setGraphData(data)
@@ -83,20 +92,41 @@ export default function KnowledgeGraphPage() {
   // ── 预算布局 ──────────────────────────────────────────────────
   const computePositions = (nodes, edges, W, H) => {
     const cx = W / 2, cy = H / 2
-    const kcR = Math.min(W, H) * 0.27
-    const exR = Math.min(W, H) * 0.46
+    const kcR     = Math.min(W, H) * 0.27
+    const exR     = Math.min(W, H) * 0.46
+    const prereqR = Math.min(W, H) * 0.60   // 前置依赖节点放最外圈
     const pos = {}
     pos['student'] = { x: cx, y: cy }
 
     const kcNodes     = nodes.filter(n => n.nodeType === 'kc')
+    const prereqNodes = nodes.filter(n => n.nodeType === 'prereq')
     const exNodes     = nodes.filter(n => n.nodeType === 'exercise')
     const coversEdges = edges.filter(e => e.edgeType === 'covers')
+    const prereqEdges = edges.filter(e => e.edgeType === 'prereq')
 
+    // kc 节点：内圈均匀排列
     kcNodes.forEach((n, i) => {
       const a = (2 * Math.PI * i / Math.max(kcNodes.length, 1)) - Math.PI / 2
       pos[n.id] = { x: cx + kcR * Math.cos(a), y: cy + kcR * Math.sin(a) }
     })
 
+    // prereq 节点：尽量靠近它的目标 kc，外圈排列
+    prereqNodes.forEach((n, i) => {
+      // 找该前置节点指向的第一个 kc（目标方向）
+      const linked = prereqEdges.filter(e => e.source === n.id).map(e => e.target)
+      let baseAngle = linked.length > 0 && pos[linked[0]]
+        ? Math.atan2(pos[linked[0]].y - cy, pos[linked[0]].x - cx)
+        : (2 * Math.PI * i / Math.max(prereqNodes.length, 1)) - Math.PI / 2
+      // 同方向的前置节点稍微错开
+      const sameDir = prereqNodes.slice(0, i).filter(m => {
+        const ml = prereqEdges.filter(e => e.source === m.id).map(e => e.target)
+        return ml[0] === linked[0]
+      })
+      baseAngle += sameDir.length * 0.18
+      pos[n.id] = { x: cx + prereqR * Math.cos(baseAngle), y: cy + prereqR * Math.sin(baseAngle) }
+    })
+
+    // exercise 节点：靠近所覆盖的 kc 方向
     const cnt = {}
     exNodes.forEach(ex => {
       const linked = coversEdges.filter(e => e.source === ex.id).map(e => e.target)
@@ -189,8 +219,11 @@ export default function KnowledgeGraphPage() {
     }
     if (n.nodeType === 'kc') return {
       fill: masteryColor(n.masteryLevel ?? 0), lineWidth: 0,
-      // 掌握度越高，圆越大
       size: 18 + Math.round((n.masteryLevel ?? 0) * 22),
+    }
+    if (n.nodeType === 'prereq') return {
+      fill: '#d9d9d9', lineWidth: 1.5, stroke: '#8c8c8c',
+      size: 14,
     }
     // exercise: exfr 越高颜色越红，圆越大（越需要复习）
     return {
@@ -207,9 +240,10 @@ export default function KnowledgeGraphPage() {
 
   // mlkc / pkc 向相反方向弯曲，避免标签/线重叠
   const edgeStyle = e => {
-    if (e.edgeType === 'mlkc')   return { stroke: '#1677ff', lineWidth: 1.2, opacity: 0.6, curveOffset:  40 }
-    if (e.edgeType === 'pkc')    return { stroke: '#fa8c16', lineWidth: 1,   opacity: 0.6, curveOffset: -40, lineDash: [4, 3] }
-    if (e.edgeType === 'exfr')   return { stroke: '#722ed1', lineWidth: 1.2, opacity: 0.6, curveOffset:  20 }
+    if (e.edgeType === 'mlkc')   return { stroke: '#1677ff', lineWidth: 1.2, opacity: 0.6,  curveOffset:  40 }
+    if (e.edgeType === 'pkc')    return { stroke: '#fa8c16', lineWidth: 1,   opacity: 0.6,  curveOffset: -40, lineDash: [4, 3] }
+    if (e.edgeType === 'exfr')   return { stroke: '#722ed1', lineWidth: 1.2, opacity: 0.6,  curveOffset:  20 }
+    if (e.edgeType === 'prereq') return { stroke: '#8c8c8c', lineWidth: 1,   opacity: 0.45, curveOffset:   0, lineDash: [5, 4] }
     return                              { stroke: '#ccc',    lineWidth: 0.8, opacity: 0.35, curveOffset:   0 }
   }
 
@@ -217,7 +251,7 @@ export default function KnowledgeGraphPage() {
     if (v >= 0.8) return '#52c41a'
     if (v >= 0.5) return '#faad14'
     if (v > 0)    return '#4096ff'
-    return '#bfbfbf'
+    return '#bae0ff'   // 未练习/掌握度为0 → 浅蓝，区别于灰色的关联知识点
   }
   const exfrColor = v => {
     if (v >= 0.7) return '#ff4d4f'
@@ -264,6 +298,42 @@ export default function KnowledgeGraphPage() {
 
       {/* 右侧控件 */}
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+        {/* 前置依赖开关 */}
+        <span
+          onClick={() => setIncludePrerequisites(v => !v)}
+          title="开启后展示所练习知识点的关联节点"
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '2px 8px', borderRadius: 3, cursor: 'pointer',
+            fontSize: 12, color: includePrerequisites ? '#1677ff' : '#888',
+            background: includePrerequisites ? '#e6f4ff' : 'transparent',
+            border: `1px solid ${includePrerequisites ? '#91caff' : '#d9d9d9'}`,
+            transition: 'all .15s', userSelect: 'none', whiteSpace: 'nowrap',
+          }}
+        >
+          <span style={{
+            width: 11, height: 11, borderRadius: '50%', flexShrink: 0,
+            background: '#d9d9d9', border: '1.5px solid #8c8c8c', display: 'inline-block',
+          }} />
+          关联知识点
+        </span>
+        {/* 不限数量开关（仅在关联知识点开启时可见） */}
+        {includePrerequisites && (
+          <span
+            onClick={() => setUnlimitedRelated(v => !v)}
+            title="关闭限制后展示完整关联图（可能节点较多）"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+              padding: '2px 7px', borderRadius: 3, cursor: 'pointer',
+              fontSize: 12, color: unlimitedRelated ? '#d4380d' : '#888',
+              background: unlimitedRelated ? '#fff2e8' : 'transparent',
+              border: `1px solid ${unlimitedRelated ? '#ffbb96' : '#d9d9d9'}`,
+              transition: 'all .15s', userSelect: 'none', whiteSpace: 'nowrap',
+            }}
+          >
+            {unlimitedRelated ? '完整关联' : '限25个'}
+          </span>
+        )}
         <Select
           size="small"
           value={courseId}

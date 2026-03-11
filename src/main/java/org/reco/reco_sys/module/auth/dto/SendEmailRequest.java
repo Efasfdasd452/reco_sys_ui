@@ -13,4 +13,8 @@ public class SendEmailRequest {
 
     @NotBlank
     private String type;
+
+    /** 滑块验证通行证，发验证码前必须先完成滑块验证 */
+    @NotBlank
+    private String captchaPassToken;
 }

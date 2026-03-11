@@ -1,6 +1,11 @@
 """
 注入测试用例 6-10 的 KC 状态到 user_kc_state 表。
 
+与项目逻辑对应：表结构及列名需与 JPA 实体 UserKcState 一致
+  (org.reco.reco_sys.module.learning.entity.UserKcState)：
+  user_id, kp_id, mastery_level, correct_count, total_count, updated_at
+  (kp_id 对应 knowledge_point.id，由 knowledge_point.py_kc_index 查得)
+
 用法：
   python inject_test_kc_states.py <userId> <testCase>
 
@@ -10,8 +15,8 @@
 注意：
 - testCase 取值：6 / 7 / 8 / 9 / 10
 - 脚本会先删除该用户已有的所有 KC 状态，再插入新状态
+- correct_count/total_count 按 mastery_level 折算为 correct_count/total_count=mlkc，满足 NOT NULL
 - pkc 在 Java 侧自动计算为 1-mlkc，与原始 pyKT pkc 有差异
-  （pyKT 的 pkc 是"KC出现概率"，不是 1-mlkc）
 - 用例 6/9/10 的 pkc[kc75]=0 特性在当前 Java 近似下无法完全还原
 """
 
@@ -186,16 +191,18 @@ def main():
             deleted = cur.rowcount
             print(f'已清除用户 {user_id} 的旧 KC 状态（{deleted} 条）')
 
-            # 3. 插入新 KC 状态
+            # 3. 插入新 KC 状态（与实体 UserKcState 一致：含 correct_count/total_count，mlkc = correct_count/total_count）
             inserted = 0
             for py_idx, mlkc in kc_states.items():
                 kp_id = idx_to_kp_id.get(py_idx)
                 if kp_id is None:
                     continue
+                total = 100
+                correct = max(0, min(total, round(mlkc * total)))
                 cur.execute(
-                    '''INSERT INTO user_kc_state (user_id, kp_id, mastery_level, updated_at)
-                       VALUES (%s, %s, %s, NOW())''',
-                    (user_id, kp_id, mlkc)
+                    '''INSERT INTO user_kc_state (user_id, kp_id, mastery_level, correct_count, total_count, updated_at)
+                       VALUES (%s, %s, %s, %s, %s, NOW())''',
+                    (user_id, kp_id, mlkc, correct, total)
                 )
                 inserted += 1
 

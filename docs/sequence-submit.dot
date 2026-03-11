@@ -24,7 +24,7 @@ digraph Seq2_Submit {
     { rank=same
         P_fe      [shape=box style="filled,rounded" fillcolor="#BBDEFB" label="前端\n(React)"]
         P_learn   [shape=box style="filled,rounded" fillcolor="#F8BBD0" label="LearningController"]
-        P_assess  [shape=box style="filled,rounded" fillcolor="#CE93D8" label="AssessmentService"]
+        P_learn2  [shape=box style="filled,rounded" fillcolor="#CE93D8" label="LearningService\n(判题/更新状态)"]
         P_mysql   [shape=cylinder style=filled fillcolor="#A5D6A7" label="MySQL"]
         P_teacher [shape=box style="filled,rounded" fillcolor="#FFE082" label="教师前端"]
     }
@@ -55,28 +55,28 @@ digraph Seq2_Submit {
     edge [style=dashed arrowhead=none color="#AAAAAA" weight=20]
     P_fe     -> fe0  -> fe1  -> fe2  -> fe3  -> fe4  -> fe5  -> fe6  -> fe7  -> fe8  -> fe9  -> fe10 -> fe11
     P_learn  -> le0  -> le1  -> le2  -> le3  -> le4  -> le5  -> le6  -> le7  -> le8  -> le9  -> le10 -> le11
-    P_assess -> as0  -> as1  -> as2  -> as3  -> as4  -> as5  -> as6  -> as7  -> as8  -> as9  -> as10 -> as11
+    P_learn2 -> as0  -> as1  -> as2  -> as3  -> as4  -> as5  -> as6  -> as7  -> as8  -> as9  -> as10 -> as11
     P_mysql  -> my0  -> my1  -> my2  -> my3  -> my4  -> my5  -> my6  -> my7  -> my8  -> my9  -> my10 -> my11
     P_teacher-> tc0  -> tc1  -> tc2  -> tc3  -> tc4  -> tc5  -> tc6  -> tc7  -> tc8  -> tc9  -> tc10 -> tc11
 
     // ── 消息 ────────────────────────────────────────────
     edge [style=solid arrowhead=vee color="#333333" weight=1]
 
-    fe0  -> le0   [label="① POST /api/learning/submit\n  {exerciseId, userAnswer, timeSpent}"]
-    le1  -> my1   [label="② INSERT INTO answer_record\n  (grade_status=PENDING/GRADED)"]
+    fe0  -> le0   [label="① POST /api/learning/submit\n  {exerciseId, answer, timeSpent}"]
+    le1  -> my1   [label="② INSERT answer_record\n  (status=SUBMITTED/GRADED/AUTO_GRADED)"]
 
     // 路径 A：客观题自动判题
-    le2  -> as2   [label="③-A 题型=客观题\n  调用 AutoGradeService"]
-    as3  -> my3   [label="④-A UPDATE answer_record\n  SET is_correct=?, grade_status='GRADED'"]
+    le2  -> as2   [label="③-A 题型=客观题\n  LearningService 自动判题"]
+    as3  -> my3   [label="④-A UPDATE answer_record\n  SET status='AUTO_GRADED', score=?"]
     as4  -> le4   [label="⑤-A 返回判题结果"]
     le5  -> as5   [label="⑥-A 异步更新\n  user_kc_state / user_exercise_forget"]
     as6  -> my6   [label="⑦-A UPDATE user_kc_state\n  UPDATE user_exercise_forget"]
-    le7  -> fe7   [label="⑧-A 返回 {isCorrect, score, analysis}"]
+    le7  -> fe7   [label="⑧-A 返回 {status, score, ...}"]
 
     // 路径 B：问答题进入待批改
-    le8  -> fe8   [label="③-B 题型=问答题\n  返回 {status:'PENDING', msg:'等待教师批改'}"]
-    tc9  -> le9   [label="④-B 教师 GET /api/grade/pending\n  获取待批改列表"]
-    le10 -> my10  [label="⑤-B SELECT * FROM answer_record\n  WHERE grade_status='PENDING'"]
-    tc10 -> le10  [label="⑥-B POST /api/grade/{id}\n  {score, teacherComment}"]
-    le11 -> my11  [label="⑦-B UPDATE answer_record\n  SET grade_status='GRADED', score=?, teacher_comment=?"]
+    le8  -> fe8   [label="③-B 题型=问答题\n  返回 status=SUBMITTED，等待教师批改"]
+    tc9  -> le9   [label="④-B 教师 GET /api/grade/pending/course/{courseId}\n  获取待批改列表"]
+    le10 -> my10  [label="⑤-B SELECT * FROM answer_record\n  WHERE status='SUBMITTED' 等"]
+    tc10 -> le10  [label="⑥-B POST /api/grade/{recordId}\n  {score, teacherComment}"]
+    le11 -> my11  [label="⑦-B UPDATE answer_record\n  SET status='GRADED', score=?, teacher_comment=?, graded_by, graded_at"]
 }

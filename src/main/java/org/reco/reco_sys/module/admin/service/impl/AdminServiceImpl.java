@@ -210,17 +210,62 @@ public class AdminServiceImpl implements AdminService {
         }
         log.info("Neo4j COVERS 边 MERGE 完成，共 {} 条", coversParams.size());
 
+        // 4. 从 Q 矩阵共现推导 PREREQUISITE_OF 边
+        //    规则：若 kc_i 出现在 kc_j 所有相关习题中（P(kc_i|kc_j) >= 0.85），
+        //    且 kc_i 涉及的习题数 > kc_j（说明 kc_i 更基础），则 kc_i PREREQUISITE_OF kc_j。
+        Map<Long, Set<Long>> kcToExSet = new HashMap<>();
+        for (Exercise ex : exercises) {
+            for (ExerciseKpRel rel : kpRelRepository.findByExerciseId(ex.getId())) {
+                kcToExSet.computeIfAbsent(rel.getKpId(), k -> new HashSet<>()).add(ex.getId());
+            }
+        }
+
+        List<Map<String, Object>> prereqParams = new ArrayList<>();
+        List<Long> kcIdList = new ArrayList<>(kcToExSet.keySet());
+        for (int i = 0; i < kcIdList.size(); i++) {
+            Long kcJ = kcIdList.get(i);
+            Set<Long> exsJ = kcToExSet.get(kcJ);
+            if (exsJ.isEmpty()) continue;
+            for (int j = 0; j < kcIdList.size(); j++) {
+                if (i == j) continue;
+                Long kcI = kcIdList.get(j);
+                Set<Long> exsI = kcToExSet.get(kcI);
+                if (exsI == null || exsI.isEmpty()) continue;
+                // kc_i 比 kc_j 更基础（出现习题数更多），且 kc_j 的所有习题中 kc_i 几乎都出现
+                if (exsI.size() <= exsJ.size()) continue;
+                long intersection = exsI.stream().filter(exsJ::contains).count();
+                double conditionalProb = (double) intersection / exsJ.size();
+                if (conditionalProb >= 0.85) {
+                    Map<String, Object> p = new HashMap<>();
+                    p.put("fromId", kcI);
+                    p.put("toId", kcJ);
+                    prereqParams.add(p);
+                }
+            }
+        }
+
+        if (!prereqParams.isEmpty()) {
+            neo4jClient.query(
+                    "UNWIND $edges AS edge " +
+                    "MATCH (from:KnowledgePoint {mysqlId: edge.fromId}) " +
+                    "MATCH (to:KnowledgePoint {mysqlId: edge.toId}) " +
+                    "MERGE (from)-[:PREREQUISITE_OF]->(to)")
+                    .bindAll(Map.of("edges", prereqParams))
+                    .run();
+        }
+        log.info("Neo4j PREREQUISITE_OF 边推导完成，共 {} 条", prereqParams.size());
+
         return Map.of(
                 "neo4jKcNodes", kps.size(),
                 "neo4jExNodes", exercises.size(),
-                "neo4jCoversEdges", coversParams.size()
+                "neo4jCoversEdges", coversParams.size(),
+                "neo4jPrereqEdges", prereqParams.size()
         );
     }
 
     @Override
     public void cleanOldNeo4jEdges() {
         neo4jClient.query("MATCH ()-[r:RELATED_TO]->() DELETE r").run();
-        neo4jClient.query("MATCH ()-[r:PREREQUISITE_OF]->() DELETE r").run();
-        log.info("已清除 Neo4j 中旧设计的 RELATED_TO 和 PREREQUISITE_OF 边");
+        log.info("已清除 Neo4j 中旧设计的 RELATED_TO 边（PREREQUISITE_OF 由 syncNeo4j 维护，不清除）");
     }
 }

@@ -1,6 +1,10 @@
 """
-批量更新习题类型、内容和正确答案
-将部分 SHORT_ANSWER 题改为 SINGLE_CHOICE / TRUE_FALSE，并设置正确答案
+批量更新习题类型、内容和正确答案。
+将部分 SHORT_ANSWER 题改为 SINGLE_CHOICE / TRUE_FALSE，并设置正确答案。
+
+与项目逻辑对应：表 exercise 及列与 JPA 实体 Exercise 一致
+  (org.reco.reco_sys.module.exercise.entity.Exercise)：
+  type, content, answer_key 等。题型枚举含 SINGLE_CHOICE, TRUE_FALSE, SHORT_ANSWER 等。
 """
 import pymysql
 

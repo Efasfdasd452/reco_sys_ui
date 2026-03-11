@@ -23,6 +23,9 @@ public class AuthController {
 
     @PostMapping("/email-code")
     public Result<Void> sendEmailCode(@Valid @RequestBody SendEmailRequest request) {
+        if (!captchaService.verifyPassToken(request.getCaptchaPassToken())) {
+            throw new BusinessException(ResultCode.PARAM_ERROR, "请先完成滑块验证");
+        }
         authService.sendEmailCode(request);
         return Result.success(null);
     }

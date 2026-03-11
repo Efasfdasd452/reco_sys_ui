@@ -99,13 +99,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
     }
 
     @Override
-    public GraphDto getGraphForStudent(Long courseId, Long userId) {
-        return buildGraph(courseId, userId);
+    public GraphDto getGraphForStudent(Long courseId, Long userId, boolean includePrerequisites, int maxRelatedNodes) {
+        return buildGraph(courseId, userId, includePrerequisites, maxRelatedNodes);
     }
 
     @Override
-    public GraphDto getGraphForTeacher(Long courseId, Long targetUserId) {
-        return buildGraph(courseId, targetUserId);
+    public GraphDto getGraphForTeacher(Long courseId, Long targetUserId, boolean includePrerequisites, int maxRelatedNodes) {
+        return buildGraph(courseId, targetUserId, includePrerequisites, maxRelatedNodes);
     }
 
     /**
@@ -120,7 +120,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
      *
      * 全部从 MySQL 计算，无需查 Neo4j（Neo4j 供 Python 推荐模型使用）。
      */
-    private GraphDto buildGraph(Long courseId, Long userId) {
+    private GraphDto buildGraph(Long courseId, Long userId, boolean includePrerequisites, int maxRelatedNodes) {
         List<GraphDto.GraphNode> nodes = new ArrayList<>();
         List<GraphDto.GraphEdge> edges = new ArrayList<>();
 
@@ -231,7 +231,13 @@ public class KnowledgeServiceImpl implements KnowledgeService {
             edges.add(exfrEdge);
         }
 
-        // ── 3. COVERS 边：exercise → kc（Q矩阵静态，仅可见节点间）─────
+        // ── 3. 前置依赖扩展（可选）：从 Neo4j 递归查 PREREQUISITE_OF ───
+        if (includePrerequisites && !visibleKpIds.isEmpty()) {
+            int cap = maxRelatedNodes <= 0 ? Integer.MAX_VALUE : maxRelatedNodes;
+            expandPrerequisites(nodes, edges, visibleKpIds, kpById, cap);
+        }
+
+        // ── 4. COVERS 边：exercise → kc（Q矩阵静态，仅可见节点间）─────
         for (Long exId : visibleExIds) {
             for (ExerciseKpRel rel : exerciseKpRelRepository.findByExerciseId(exId)) {
                 if (visibleKpIds.contains(rel.getKpId())) {
@@ -249,6 +255,91 @@ public class KnowledgeServiceImpl implements KnowledgeService {
         graph.setNodes(nodes);
         graph.setEdges(edges);
         return graph;
+    }
+
+    /**
+     * 从 Neo4j 以 BFS 方式展开 visibleKpIds 的 RELATED_TO 邻居（最多 2 跳），
+     * 新增节点数不超过 cap（0 或 Integer.MAX_VALUE 表示不限）。
+     * 新增节点 nodeType="prereq"，边 edgeType="prereq"。
+     */
+    private void expandPrerequisites(List<GraphDto.GraphNode> nodes,
+                                     List<GraphDto.GraphEdge> edges,
+                                     Set<Long> visibleKpIds,
+                                     Map<Long, KnowledgePoint> kpById,
+                                     int cap) {
+        // BFS: 第 1 跳从 seed 出发，第 2 跳从第 1 跳新节点出发
+        Set<Long> visited = new HashSet<>(visibleKpIds);   // 已在图中的节点
+        Set<Long> newIds  = new LinkedHashSet<>();          // 本次新引入的节点
+        Set<String> edgeKeys = new HashSet<>();
+
+        // 边缓存（source mysqlId, target mysqlId）
+        List<long[]> pendingEdges = new ArrayList<>();
+
+        // 执行 1 跳 BFS，返回从 currentFrontier 出发找到的 (seedId, relId) 对
+        java.util.function.BiConsumer<List<Long>, Integer> bfsStep = (frontier, depth) -> {
+            if (frontier.isEmpty()) return;
+            Collection<Map<String, Object>> rows;
+            try {
+                rows = neo4jClient.query(
+                        "UNWIND $frontier AS sid " +
+                        "MATCH (seed:KnowledgePoint {mysqlId: sid})-[:RELATED_TO]-(rel:KnowledgePoint) " +
+                        "WHERE NOT rel.mysqlId IN $visited " +
+                        "RETURN seed.mysqlId AS seedId, rel.mysqlId AS relId"
+                ).bind(frontier).to("frontier")
+                 .bind(new ArrayList<>(visited)).to("visited")
+                 .fetch().all();
+            } catch (Exception e) {
+                log.warn("Neo4j RELATED_TO 查询失败(depth={}): {}", depth, e.getMessage());
+                return;
+            }
+            for (Map<String, Object> row : rows) {
+                long seedId = ((Number) row.get("seedId")).longValue();
+                long relId  = ((Number) row.get("relId")).longValue();
+                if (newIds.size() < cap && !visited.contains(relId)) {
+                    newIds.add(relId);
+                    visited.add(relId);
+                }
+                pendingEdges.add(new long[]{seedId, relId});
+            }
+        };
+
+        // 第 1 跳：seed KCs
+        bfsStep.accept(new ArrayList<>(visibleKpIds), 1);
+
+        // 第 2 跳：第 1 跳新引入的节点
+        if (!newIds.isEmpty() && newIds.size() < cap) {
+            bfsStep.accept(new ArrayList<>(newIds), 2);
+        }
+
+        if (newIds.isEmpty()) return;
+
+        // 从 MySQL 查新节点详情并加节点
+        List<KnowledgePoint> relKps = kpRepository.findAllById(newIds);
+        for (KnowledgePoint kp : relKps) {
+            GraphDto.GraphNode node = new GraphDto.GraphNode();
+            node.setId("kc_" + kp.getId());
+            node.setNodeType("prereq");
+            node.setLabel(kp.getName());
+            node.setMasteryLevel(0.0);
+            node.setPkc(0.0);
+            nodes.add(node);
+        }
+
+        // 加边（仅两端都在图中的边）
+        Set<Long> allIds = new HashSet<>(visibleKpIds);
+        allIds.addAll(newIds);
+        for (long[] e : pendingEdges) {
+            long a = e[0], b = e[1];
+            if (!allIds.contains(a) || !allIds.contains(b)) continue;
+            String key = Math.min(a, b) + "-" + Math.max(a, b);
+            if (!edgeKeys.add(key)) continue;
+            GraphDto.GraphEdge edge = new GraphDto.GraphEdge();
+            edge.setSource("kc_" + a);
+            edge.setTarget("kc_" + b);
+            edge.setLabel("关联");
+            edge.setEdgeType("prereq");
+            edges.add(edge);
+        }
     }
 
     private KnowledgePointDto toDto(KnowledgePoint kp) {

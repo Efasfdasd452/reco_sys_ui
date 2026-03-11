@@ -162,6 +162,20 @@ public class RecommendationServiceImpl implements RecommendationService {
                 .filter(kp -> kp.getPyKcIndex() != null)
                 .collect(Collectors.toMap(KnowledgePoint::getPyKcIndex, kp -> kp));
 
+        // 按文档公式重新计算 pkc：pkc(kc_i) = kc_i出现次数(totalCount) / 总答题数
+        long totalExercisesDone = answerRecordRepository.countDistinctExerciseIdsByUserId(userId);
+        Map<Long, KnowledgePoint> kpById = courseKps.stream()
+                .collect(Collectors.toMap(KnowledgePoint::getId, kp -> kp));
+        Map<String, Double> pkcMap = new HashMap<>();
+        for (UserKcState state : states) {
+            KnowledgePoint kp = kpById.get(state.getKpId());
+            if (kp == null || kp.getPyKcIndex() == null) continue;
+            double pkcVal = totalExercisesDone > 0
+                    ? Math.min(1.0, (double) state.getTotalCount() / totalExercisesDone)
+                    : 0.0;
+            pkcMap.put("kc" + kp.getPyKcIndex(), pkcVal);
+        }
+
         RecommendResponse response = new RecommendResponse();
         response.setRecId(rec.getId());
         response.setOverallReason(rec.getReason());
@@ -192,7 +206,7 @@ public class RecommendationServiceImpl implements RecommendationService {
                                     ? masteryByKpId.getOrDefault(kp.getId(), 0.0)
                                     : 0.0;
                             detail.setMastery(mastery);
-                            detail.setPkc(Math.max(0.0, 1.0 - mastery));
+                            detail.setPkc(pkcMap.getOrDefault("kc" + idx, 0.0));
                             return detail;
                         })
                         .collect(Collectors.toList());

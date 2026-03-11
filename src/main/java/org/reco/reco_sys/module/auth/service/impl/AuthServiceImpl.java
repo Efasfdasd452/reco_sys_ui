@@ -1,6 +1,7 @@
 package org.reco.reco_sys.module.auth.service.impl;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.reco.reco_sys.common.exception.BusinessException;
 import org.reco.reco_sys.common.result.ResultCode;
 import org.reco.reco_sys.common.util.IpUtil;
@@ -38,6 +39,9 @@ public class AuthServiceImpl implements AuthService {
     private final JavaMailSender mailSender;
     private final NotificationService notificationService;
     private final IpUtil ipUtil;
+
+    @Value("${spring.mail.username}")
+    private String mailFrom;
 
     @Override
     @Transactional
@@ -145,6 +149,8 @@ public class AuthServiceImpl implements AuthService {
 
     private void sendMail(String to, String subject, String text) {
         SimpleMailMessage msg = new SimpleMailMessage();
+        // 显示名设为 noreply，收件人看不到 QQ 号
+        msg.setFrom("reco_sys noreply <" + mailFrom + ">");
         msg.setTo(to);
         msg.setSubject(subject);
         msg.setText(text);

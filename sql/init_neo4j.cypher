@@ -1,13 +1,19 @@
-// reco_sys Neo4j -- Algebra 2005 RELATED_TO relationships
+// reco_sys Neo4j — 知识点 RELATED_TO 关系（Algebra 2005 共现边）
 //
-// 前提：先在管理页面点击「导入推荐数据（KG4Ex）」，让 Spring Boot 创建 112 个 KnowledgePoint 节点
-// 然后运行本脚本添加习题共现关系（共现次数 >= 20 的知识点对，共 797 条边）
+// 与项目逻辑对应关系：
+//   - 节点标签与属性需与 KnowledgePointNode（org.reco.reco_sys.module.knowledge.neo4j）一致：
+//     :KnowledgePoint { mysqlId, name, courseId }，其中 name 为 "kc0","kc1",...,"kc111"
+//   - 关系类型 RELATED_TO 与 KnowledgeServiceImpl 中图查询使用的类型一致
+//
+// 执行顺序：
+//   1. 在管理后台点击「导入推荐数据（KG4Ex）」→ 由 AdminServiceImpl 创建 112 个 KnowledgePoint 节点（name=kc0..kc111）
+//   2. 再执行本脚本，为共现次数 >= 20 的知识点对创建 RELATED_TO { cooccurrence: w } 边
 //
 // 运行方式:
-//   cypher-shell -u neo4j -p Zym856460. --file init_neo4j.cypher
+//   cypher-shell -u neo4j -p <密码> --file init_neo4j.cypher
 // 或在 Neo4j Browser 中分段粘贴执行
 
-// 创建约束/索引（加速 MATCH）
+// 创建索引（加速 MATCH；Neo4j 5.x 语法）
 CREATE INDEX kp_name IF NOT EXISTS FOR (n:KnowledgePoint) ON (n.name);
 
 // 批量创建 RELATED_TO 关系

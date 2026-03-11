@@ -13,6 +13,7 @@ import java.util.UUID;
 public class CaptchaController {
 
     private final CaptchaService captchaService;
+    private final SliderTrackAnalyzer trackAnalyzer;
 
     /**
      * 生成图片滑块验证码。
@@ -34,18 +35,23 @@ public class CaptchaController {
     }
 
     /**
-     * 校验滑块位置。
-     *
-     * @param token   generate 返回的 token
-     * @param sliderX 拼图块左边缘的像素位置（0 ~ imageWidth - 50）
+     * 校验滑块位置 + 拖动轨迹（行为检测）。
+     * 两者同时通过才颁发 passToken。
      */
     @PostMapping("/verify")
-    public Result<Map<String, Object>> verify(@RequestParam String token,
-                                              @RequestParam int sliderX) {
-        boolean passed = captchaService.verify(token, sliderX);
-        if (!passed) {
+    public Result<Map<String, Object>> verify(@RequestBody VerifyRequest req) {
+        // 1. 位置校验
+        boolean positionOk = captchaService.verify(req.getToken(), req.getSliderX());
+        if (!positionOk) {
             return Result.success(Map.of("passed", false));
         }
+
+        // 2. 轨迹行为校验
+        int trackScore = trackAnalyzer.analyze(req.getTrack(), req.getTotalTime(), req.getSliderX());
+        if (trackScore < SliderTrackAnalyzer.PASS_SCORE) {
+            return Result.success(Map.of("passed", false));
+        }
+
         String passToken = UUID.randomUUID().toString().replace("-", "");
         captchaService.storePassToken(passToken);
         return Result.success(Map.of("passed", true, "passToken", passToken));

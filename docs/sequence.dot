@@ -29,7 +29,7 @@ digraph Seq1_Login {
     { rank=same
         P_fe    [shape=box style="filled,rounded" fillcolor="#BBDEFB" label="前端\n(React)"]
         P_auth  [shape=box style="filled,rounded" fillcolor="#F8BBD0" label="AuthController"]
-        P_rec   [shape=box style="filled,rounded" fillcolor="#CE93D8" label="RecommendController"]
+        P_rec   [shape=box style="filled,rounded" fillcolor="#CE93D8" label="RecommendationController"]
         P_mysql [shape=cylinder style=filled fillcolor="#A5D6A7" label="MySQL"]
         P_py    [shape=box style="filled,rounded" fillcolor="#FFE082" label="Python FastAPI\n:8000"]
     }

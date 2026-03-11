@@ -50,16 +50,20 @@ public class KnowledgeController {
 
     @GetMapping("/graph/{courseId}")
     public Result<GraphDto> getMyGraph(@PathVariable Long courseId,
+                                       @RequestParam(defaultValue = "false") boolean includePrerequisites,
+                                       @RequestParam(defaultValue = "25") int maxRelatedNodes,
                                        @RequestHeader("Authorization") String token) {
         Long userId = jwtUtil.getUserId(extractToken(token));
-        return Result.success(knowledgeService.getGraphForStudent(courseId, userId));
+        return Result.success(knowledgeService.getGraphForStudent(courseId, userId, includePrerequisites, maxRelatedNodes));
     }
 
     @GetMapping("/graph/{courseId}/user/{userId}")
     @PreAuthorize("hasAnyRole('TEACHER','ADMIN')")
     public Result<GraphDto> getUserGraph(@PathVariable Long courseId,
-                                         @PathVariable Long userId) {
-        return Result.success(knowledgeService.getGraphForTeacher(courseId, userId));
+                                         @PathVariable Long userId,
+                                         @RequestParam(defaultValue = "false") boolean includePrerequisites,
+                                         @RequestParam(defaultValue = "25") int maxRelatedNodes) {
+        return Result.success(knowledgeService.getGraphForTeacher(courseId, userId, includePrerequisites, maxRelatedNodes));
     }
 
     private String extractToken(String bearer) {

@@ -21,6 +21,12 @@ export default function LoginPage() {
   const [loginCaptchaKey, setLoginCaptchaKey] = useState(0)
   const [registerCaptchaKey, setRegisterCaptchaKey] = useState(0)
 
+  // 发送邮箱验证码专用滑块（注册和重置密码各一个）
+  const [registerEmailPassToken, setRegisterEmailPassToken] = useState('')
+  const [registerEmailCaptchaKey, setRegisterEmailCaptchaKey] = useState(0)
+  const [resetEmailPassToken, setResetEmailPassToken] = useState('')
+  const [resetEmailCaptchaKey, setResetEmailCaptchaKey] = useState(0)
+
   const [loginForm] = Form.useForm()
   const [registerForm] = Form.useForm()
   const [resetForm] = Form.useForm()
@@ -77,12 +83,20 @@ export default function LoginPage() {
     }
   }
 
-  const sendCode = async (formRef, type) => {
+  const sendCode = async (formRef, type, passToken) => {
     const email = formRef.getFieldValue('email')
     if (!email) { message.warning('请先输入邮箱'); return }
     try {
-      await api.auth.sendCode(email, type)
+      await api.auth.sendCode(email, type, passToken)
       message.success('验证码已发送')
+      // 发送成功后重置该次验证码专用滑块
+      if (type === 'REGISTER') {
+        setRegisterEmailPassToken('')
+        setRegisterEmailCaptchaKey(k => k + 1)
+      } else {
+        setResetEmailPassToken('')
+        setResetEmailCaptchaKey(k => k + 1)
+      }
       let s = 60
       setCountdown(s)
       const timer = setInterval(() => {
@@ -93,8 +107,8 @@ export default function LoginPage() {
     } catch {}
   }
 
-  const CodeBtn = ({ formRef, type }) => (
-    <Button disabled={countdown > 0} onClick={() => sendCode(formRef, type)} size="small">
+  const CodeBtn = ({ formRef, type, passToken }) => (
+    <Button disabled={countdown > 0 || !passToken} onClick={() => sendCode(formRef, type, passToken)} size="small">
       {countdown > 0 ? `${countdown}s` : t('auth.sendCode')}
     </Button>
   )
@@ -161,10 +175,17 @@ export default function LoginPage() {
                 <Form.Item name="email" label={t('auth.email')} rules={[{ required: true, type: 'email' }]}>
                   <Input />
                 </Form.Item>
+                <Form.Item label="发送前请完成验证" required style={{ marginBottom: 4 }}>
+                  <SliderCaptcha
+                    key={registerEmailCaptchaKey}
+                    onSuccess={(token) => setRegisterEmailPassToken(token)}
+                    onReset={() => setRegisterEmailPassToken('')}
+                  />
+                </Form.Item>
                 <Form.Item name="emailCode" label={t('auth.emailCode')} rules={[{ required: true }]}>
                   <Space.Compact style={{ width: '100%' }}>
                     <Input style={{ flex: 1 }} />
-                    <CodeBtn formRef={registerForm} type="REGISTER" />
+                    <CodeBtn formRef={registerForm} type="REGISTER" passToken={registerEmailPassToken} />
                   </Space.Compact>
                 </Form.Item>
                 <Form.Item name="nickname" label={t('auth.nickname')}>
@@ -205,10 +226,17 @@ export default function LoginPage() {
                 <Form.Item name="email" label={t('auth.email')} rules={[{ required: true, type: 'email' }]}>
                   <Input />
                 </Form.Item>
+                <Form.Item label="发送前请完成验证" required style={{ marginBottom: 4 }}>
+                  <SliderCaptcha
+                    key={resetEmailCaptchaKey}
+                    onSuccess={(token) => setResetEmailPassToken(token)}
+                    onReset={() => setResetEmailPassToken('')}
+                  />
+                </Form.Item>
                 <Form.Item name="emailCode" label={t('auth.emailCode')} rules={[{ required: true }]}>
                   <Space.Compact style={{ width: '100%' }}>
                     <Input style={{ flex: 1 }} />
-                    <CodeBtn formRef={resetForm} type="RESET_PASSWORD" />
+                    <CodeBtn formRef={resetForm} type="RESET_PASSWORD" passToken={resetEmailPassToken} />
                   </Space.Compact>
                 </Form.Item>
                 <Form.Item name="newPassword" label={t('auth.newPassword')} rules={[{ required: true, min: 6 }]}>

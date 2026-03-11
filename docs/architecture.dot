@@ -75,13 +75,12 @@ digraph Architecture {
         be_user    [label="UserController\n用户信息管理"]
         be_course  [label="CourseController\n课程管理"]
         be_know    [label="KnowledgeController\n知识图谱 CRUD"]
-        be_ex      [label="ExerciseController\n习题管理 + 上传"]
-        be_learn   [label="LearningController\n答题提交"]
-        be_assess  [label="AssessmentController\n学习状态查询"]
-        be_rec     [label="RecommendController\n推荐（自动+手动）"]
+        be_ex      [label="ExerciseController\n习题管理"]
+        be_learn   [label="LearningController\n答题提交/历史"]
+        be_rec     [label="RecommendationController\n推荐（按课程+刷新）"]
         be_grade   [label="GradeController\n教师批改问答题"]
         be_file    [label="FileController\n图片上传/访问"]
-        be_stat    [label="StatController\n统计分析"]
+        be_admin   [label="AdminController\n用户/数据初始化/统计"]
     }
 
     // ─────────────────────────────────────────────────────────────
@@ -146,11 +145,10 @@ digraph Architecture {
     gw_rbac -> be_know
     gw_rbac -> be_ex
     gw_rbac -> be_learn
-    gw_rbac -> be_assess
     gw_rbac -> be_rec
     gw_rbac -> be_grade
     gw_rbac -> be_file
-    gw_rbac -> be_stat
+    gw_rbac -> be_admin
 
     // 后端 → MySQL
     edge [color="#2E7D32" penwidth=1.5 label="JPA/JDBC"]
@@ -159,16 +157,14 @@ digraph Architecture {
     be_course -> db_mysql
     be_ex     -> db_mysql
     be_learn  -> db_mysql
-    be_assess -> db_mysql
     be_rec    -> db_mysql
     be_grade  -> db_mysql
-    be_stat   -> db_mysql
+    be_admin  -> db_mysql
 
     // 后端 → Neo4j
     edge [color="#388E3C" penwidth=1.5 label="Spring Data\nNeo4j"]
     be_know -> db_neo4j
     be_rec  -> db_neo4j
-    be_stat -> db_neo4j
 
     // 后端 → 文件存储
     edge [color="#558B2F" penwidth=1.5 label="本地IO"]

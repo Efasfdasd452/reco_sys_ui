@@ -10,6 +10,6 @@ public interface KnowledgeService {
     KnowledgePointDto create(KnowledgePointDto dto, Long teacherId);
     void delete(Long id);
     void addRelation(Long fromId, Long toId, String relationType);
-    GraphDto getGraphForStudent(Long courseId, Long userId);
-    GraphDto getGraphForTeacher(Long courseId, Long targetUserId);
+    GraphDto getGraphForStudent(Long courseId, Long userId, boolean includePrerequisites, int maxRelatedNodes);
+    GraphDto getGraphForTeacher(Long courseId, Long targetUserId, boolean includePrerequisites, int maxRelatedNodes);
 }
