@@ -21,10 +21,15 @@ import java.util.Map;
 /**
  * Python KG4Ex 推荐服务 HTTP 客户端。
  *
- * <p>接口格式（POST /api/v1/recommend）：
+ * <p>两阶段调用流程：
  * <pre>
- * 请求：{ uid, mlkc: {kc0: 0.5, ...}, pkc: {kc0: 0.3, ...}, exfr: {ex0: 0.1, ...}, top_n: 10 }
- * 响应：{ uid, top_n, recommendations: [{exercise_id, exercise_name, score, knowledge_concepts}] }
+ * Step1: POST /api/v1/knowledge-state
+ *   请求：{ uid, answers: [{exercise_id, is_correct, answered_at}], t_half_days }
+ *   响应：{ uid, mlkc: {kc0:0.71,...}, pkc: {kc0:1.0,...}, exfr: {ex0:0.43,...} }
+ *
+ * Step2: POST /api/v1/recommend
+ *   请求：{ uid, mlkc, pkc, exfr, top_n }
+ *   响应：{ uid, top_n, recommendations: [{exercise_id, exercise_name, score, knowledge_concepts}] }
  * </pre>
  */
 @Slf4j
@@ -138,9 +143,82 @@ public class PythonRecommendClient {
         }
     }
 
+    /**
+     * 调用知识状态计算接口（DKT/LSTM + 艾宾浩斯遗忘曲线）。
+     *
+     * @param uid        用户标识（仅用于日志）
+     * @param answers    按时间顺序排列的答题记录
+     * @param tHalfDays  艾宾浩斯记忆半衰期（天），默认 1.0
+     * @return { mlkc, pkc, exfr } 三个知识状态 Map
+     */
+    public KnowledgeStateResponse knowledgeState(String uid,
+                                                  List<AnswerItem> answers,
+                                                  double tHalfDays) {
+        try {
+            KnowledgeStateRequest body = new KnowledgeStateRequest();
+            body.setUid(uid);
+            body.setAnswers(answers);
+            body.setTHalfDays(tHalfDays);
+
+            String jsonBody = objectMapper.writeValueAsString(body);
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(apiUrl("/api/v1/knowledge-state")))
+                    .header("Content-Type", "application/json")
+                    .header("X-API-Key", appProperties.getRecommendServiceApiKey())
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonBody, StandardCharsets.UTF_8))
+                    .build();
+            HttpResponse<String> resp = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() != 200) {
+                log.error("knowledge-state 调用失败: status={}, body={}", resp.statusCode(), resp.body());
+                throw new BusinessException(ResultCode.RECOMMEND_SERVICE_ERROR);
+            }
+            KnowledgeStateResponse result = objectMapper.readValue(resp.body(), KnowledgeStateResponse.class);
+            return result != null ? result : new KnowledgeStateResponse();
+        } catch (BusinessException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("knowledge-state 服务调用失败: {}", e.getMessage());
+            throw new BusinessException(ResultCode.RECOMMEND_SERVICE_ERROR);
+        }
+    }
+
     // -------------------------------------------------------------------------
     // 内部类型定义
     // -------------------------------------------------------------------------
+
+    /** 知识状态接口请求体 */
+    @Data
+    public static class KnowledgeStateRequest {
+        private String uid;
+        private List<AnswerItem> answers;
+        @JsonProperty("t_half_days")
+        private double tHalfDays = 1.0;
+    }
+
+    /** 单条答题记录（传给 knowledge-state 接口） */
+    @Data
+    public static class AnswerItem {
+        @JsonProperty("exercise_id")
+        private int exerciseId;
+        /** true=答对，false=答错 */
+        @JsonProperty("is_correct")
+        private boolean correct;
+        /** ISO 8601 时间戳，可为 null（不传则该题 exfr=0.0） */
+        @JsonProperty("answered_at")
+        private String answeredAt;
+    }
+
+    /** 知识状态接口响应体 */
+    @Data
+    public static class KnowledgeStateResponse {
+        private String uid;
+        /** KC 掌握度，key="kc{整数}"，value=0~1（DKT 推算） */
+        private Map<String, Double> mlkc;
+        /** KC 出现概率，key="kc{整数}"，value=0~1（频率统计） */
+        private Map<String, Double> pkc;
+        /** 习题遗忘率，key="ex{整数}"，value=0~1（艾宾浩斯曲线） */
+        private Map<String, Double> exfr;
+    }
 
     /** 推荐接口请求体 */
     @Data
